@@ -132,7 +132,7 @@ const AnalyticsPage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                ${overview.total_revenue.toFixed(2)}
+                {formatCurrency(overview.total_revenue)}
               </div>
             </CardContent>
           </Card>
@@ -149,18 +149,58 @@ const AnalyticsPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="half-orders-card">
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="avg-order-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Active Half Orders</CardTitle>
+              <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Avg Order Value</CardTitle>
+              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {formatCurrency(overview.average_order_value)}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="customers-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Total Customers</CardTitle>
               <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600 dark:text-green-400" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {overview.active_half_orders}
+                {overview.total_customers}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Top Restaurants Section */}
+        {overview.top_restaurants && overview.top_restaurants.length > 0 && (
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md mb-8">
+            <CardHeader>
+              <CardTitle style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Top 5 Restaurants by Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {overview.top_restaurants.map((rest, index) => (
+                  <div key={rest.restaurant_id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="text-2xl font-bold text-gray-400 dark:text-gray-500">#{index + 1}</div>
+                      <div>
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">{rest.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{rest.orders} orders</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-orange-600 dark:text-amber-500">{formatCurrency(rest.revenue)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{rest.active_tables} active tables</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md" data-testid="popular-items-chart">
