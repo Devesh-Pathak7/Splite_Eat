@@ -459,7 +459,7 @@ def test_join_same_session_twice():
         join_payload2 = {
             "table_no": "T5",
             "customer_name": "Eve Reddy",
-            "customer_mobile": "+919876543214"
+            "customer_mobile": "9876543214"
         }
         
         response2 = requests.post(
