@@ -383,15 +383,18 @@ async def create_half_order(
     await db.refresh(half_order)
     
     # Broadcast new half order
-    await manager.broadcast({
-        "type": "half_order_created",
-        "half_order": {
-            "id": half_order.id,
-            "customer_name": half_order.customer_name,
-            "menu_item_name": half_order.menu_item_name,
-            "expires_at": half_order.expires_at.isoformat()
+    await manager.broadcast(
+        restaurant_id=restaurant_id,
+        event_type="session.created",
+        data={
+            "half_order": {
+                "id": half_order.id,
+                "customer_name": half_order.customer_name,
+                "menu_item_name": half_order.menu_item_name,
+                "expires_at": half_order.expires_at.isoformat()
+            }
         }
-    }, restaurant_id)
+    )
     
     return half_order
 
