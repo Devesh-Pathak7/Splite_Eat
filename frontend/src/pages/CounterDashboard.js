@@ -373,8 +373,7 @@ const CounterDashboardContent = () => {
                     </Button>
                   </CardContent>
                 </Card>
-                );
-              })}
+              ))}
             </div>
           </TabsContent>
         </Tabs>
