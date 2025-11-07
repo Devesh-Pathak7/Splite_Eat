@@ -1,8 +1,12 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, ForeignKey, Text, JSON, BigInteger
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from database import Base
 import enum
+
+# Timezone-aware UTC datetime helper
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class UserRole(str, enum.Enum):
     SUPER_ADMIN = "super_admin"
