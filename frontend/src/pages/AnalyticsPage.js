@@ -20,7 +20,16 @@ const AnalyticsPage = () => {
   const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState('all');
-  const [overview, setOverview] = useState({ total_revenue: 0, total_orders: 0, active_half_orders: 0 });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [overview, setOverview] = useState({ 
+    total_revenue: 0, 
+    total_orders: 0, 
+    active_half_orders: 0,
+    average_order_value: 0,
+    total_customers: 0,
+    top_restaurants: []
+  });
   const [popularItems, setPopularItems] = useState([]);
 
   useEffect(() => {
