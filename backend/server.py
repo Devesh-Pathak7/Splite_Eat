@@ -524,13 +524,16 @@ async def update_order_status(
     await db.refresh(order)
     
     # Broadcast order status update
-    await manager.broadcast({
-        "type": "order_status_update",
-        "order": {
-            "id": order.id,
-            "status": order.status.value
+    await manager.broadcast(
+        restaurant_id=order.restaurant_id,
+        event_type="order.status_updated",
+        data={
+            "order": {
+                "id": order.id,
+                "status": order.status.value
+            }
         }
-    }, order.restaurant_id)
+    )
     
     return order
 
