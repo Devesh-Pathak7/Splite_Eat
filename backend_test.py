@@ -1247,7 +1247,7 @@ def test_join_expired_session():
         payload = {
             "table_no": "T99",
             "customer_name": "Test User",
-            "customer_mobile": "+919999999999"
+            "customer_mobile": "9999999999"
         }
         
         # Use a very high session ID that likely doesn't exist
@@ -1284,7 +1284,7 @@ def test_create_half_order_invalid_menu_item():
         headers = {"Authorization": f"Bearer {tokens['super_admin']}"}
         payload = {
             "customer_name": "Test User",
-            "customer_mobile": "+919999999999",
+            "customer_mobile": "9999999999",
             "menu_item_id": 99999  # Invalid ID
         }
         
