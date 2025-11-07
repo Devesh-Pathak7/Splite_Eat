@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 import { LogOut, Moon, Sun, Plus, Building, Users, BarChart3, Edit, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Badge } from '../components/ui/badge';
+import { getRestaurantTypeLabel } from '../utils/helpers';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -24,7 +27,8 @@ const AdminDashboard = () => {
   const [newRestaurant, setNewRestaurant] = useState({
     name: '',
     location: '',
-    contact: ''
+    contact: '',
+    type: 'mixed'
   });
 
   useEffect(() => {
