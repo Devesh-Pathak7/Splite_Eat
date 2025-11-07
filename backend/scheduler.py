@@ -1,16 +1,13 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from datetime import datetime, timezone
-from models import HalfOrderSession, HalfOrderStatus
 from database import AsyncSessionLocal
+from services.half_order_service import HalfOrderService
 import logging
 import os
 
 logger = logging.getLogger(__name__)
 
-# Get expiry time from environment
-HALF_ORDER_EXPIRY_MINUTES = int(os.getenv('HALF_ORDER_EXPIRY_MINUTES', '30'))
+# Get interval from environment
+EXPIRY_JOB_INTERVAL_SECONDS = int(os.getenv('EXPIRY_JOB_INTERVAL_SECONDS', '60'))
 
 scheduler = AsyncIOScheduler()
 
@@ -18,38 +15,30 @@ async def expire_half_orders():
     """Background task to expire half orders that have passed their expiry time"""
     try:
         async with AsyncSessionLocal() as db:
-            now = datetime.now(timezone.utc)
+            expired_count = await HalfOrderService.expire_sessions(db)
             
-            # Find all active half orders that have expired
-            result = await db.execute(
-                select(HalfOrderSession).where(
-                    HalfOrderSession.status == HalfOrderStatus.ACTIVE,
-                    HalfOrderSession.expires_at < now
-                )
-            )
-            expired_sessions = result.scalars().all()
-            
-            if expired_sessions:
-                logger.info(f"Expiring {len(expired_sessions)} half-order sessions")
-                
-                for session in expired_sessions:
-                    session.status = HalfOrderStatus.EXPIRED
-                    db.add(session)
-                
-                await db.commit()
-                logger.info(f"Successfully expired {len(expired_sessions)} sessions")
+            if expired_count > 0:
+                # Broadcast WebSocket event about expired sessions
+                # This will be handled by the WebSocket manager
+                pass
             
     except Exception as e:
-        logger.error(f"Error expiring half orders: {str(e)}")
+        logger.error(f"Error in expiry job: {str(e)}", exc_info=True)
 
 def start_scheduler():
     """Start the background scheduler"""
-    scheduler.add_job(expire_half_orders, 'interval', minutes=1, id='expire_half_orders')
+    interval_minutes = EXPIRY_JOB_INTERVAL_SECONDS / 60
+    scheduler.add_job(
+        expire_half_orders, 
+        'interval', 
+        seconds=EXPIRY_JOB_INTERVAL_SECONDS, 
+        id='expire_half_orders'
+    )
     scheduler.start()
-    logger.info("Scheduler started - checking for expired half orders every minute")
+    logger.info(\n        f\"Scheduler started - checking for expired sessions every \"\n        f\"{EXPIRY_JOB_INTERVAL_SECONDS}s ({interval_minutes:.1f} minutes)\"\n    )
 
 def shutdown_scheduler():
     """Shutdown the scheduler gracefully"""
     if scheduler.running:
         scheduler.shutdown()
-        logger.info("Scheduler shutdown complete")
+        logger.info(\"Scheduler shutdown complete\")
