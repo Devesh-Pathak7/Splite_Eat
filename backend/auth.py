@@ -70,3 +70,36 @@ def require_role(allowed_roles: list[UserRole]):
             )
         return current_user
     return role_checker
+
+
+# Audit logging helper
+async def log_audit(
+    db: AsyncSession,
+    user: Optional[User],
+    action: AuditAction,
+    resource_type: Optional[str] = None,
+    resource_id: Optional[int] = None,
+    details: Optional[str] = None,
+    ip_address: Optional[str] = None
+):
+    """Log an audit entry"""
+    audit_entry = AuditLog(
+        user_id=user.id if user else None,
+        username=user.username if user else "anonymous",
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        details=details,
+        ip_address=ip_address
+    )
+    db.add(audit_entry)
+    await db.commit()
+
+# Super admin or restaurant access checker
+async def check_restaurant_access(current_user: User, restaurant_id: int):
+    """Check if user has access to restaurant"""
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return True
+    if current_user.role == UserRole.COUNTER_ADMIN and current_user.restaurant_id == restaurant_id:
+        return True
+    return False
