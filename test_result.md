@@ -101,3 +101,276 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Complete SplitEat restaurant order management system with half-order sharing feature.
+  Key requirements:
+  - Half-order flow with UTC timezone-aware expiry (30 min default)
+  - Atomic join with row-locking (return 409 if already joined)
+  - Cancellation rules: Customer within 5 min, Counter admin anytime
+  - Orders supporting both half-order and full-order items
+  - Counter dashboard with real-time table status (Available/Occupied/Reserved)
+  - WebSocket events for all state changes (session.created, session.joined, etc.)
+  - RBAC enforcement (super_admin, restaurant_admin, customer)
+  - Audit logging for all privileged actions with IST display
+  - IST timezone display throughout frontend
+
+backend:
+  - task: "Integrate half_order_router into server.py"
+    implemented: false
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Router created but not yet integrated into main server.py"
+
+  - task: "Integrate orders_router into server.py"
+    implemented: false
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Router created but not yet integrated into main server.py"
+
+  - task: "Integrate counter_router into server.py"
+    implemented: false
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Router created but not yet integrated into main server.py"
+
+  - task: "Half-order creation endpoint (POST /api/half-order)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/half_order_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoint created with UTC timezone-aware expiry. Needs testing after integration."
+
+  - task: "Half-order join endpoint with row-locking (POST /api/half-order/{id}/join)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/half_order_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Atomic join with row-locking implemented. Returns 409 on conflict. Needs testing."
+
+  - task: "Half-order cancellation with rules (DELETE /api/half-order/{id})"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/half_order_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Cancellation rules implemented (customer 5 min, counter admin anytime). Needs testing."
+
+  - task: "Get active half-orders (GET /api/half-order/active)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/half_order_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Returns all active sessions restaurant-wide. Needs testing."
+
+  - task: "Order creation with paired orders (POST /api/orders)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/orders_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Supports both half-order and full-order items. Needs testing."
+
+  - task: "Order filtering (GET /api/orders)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/orders_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Filters: today/last_7/month/custom with pagination. Needs testing."
+
+  - task: "CSV export (GET /api/orders/export)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/orders_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "CSV export with filters. Needs testing."
+
+  - task: "Order status update (PATCH /api/orders/{id})"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/orders_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Update order status with audit logging. Needs testing."
+
+  - task: "Counter tables status (GET /api/counter/tables)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/counter_router.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Returns table status with auto-update. Needs testing."
+
+  - task: "WebSocket event broadcasting"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/services/websocket_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "WebSocket service created. Needs integration testing for all events."
+
+  - task: "RBAC enforcement on endpoints"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/*.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Role-based access control using require_role decorator. Needs testing."
+
+  - task: "Audit logging for all actions"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/services/audit_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Audit service logs all privileged actions. Needs testing."
+
+frontend:
+  - task: "MenuPage - Live half-order sessions"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/MenuPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Pending backend completion."
+
+  - task: "CounterDashboard - Real-time table grid"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/CounterDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Pending backend completion."
+
+  - task: "Theme toggle (light/dark mode)"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/context/ThemeContext.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Pending backend completion."
+
+  - task: "IST timezone display"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/utils/helpers.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Not yet implemented. Pending backend completion."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Integrate half_order_router into server.py"
+    - "Integrate orders_router into server.py"
+    - "Integrate counter_router into server.py"
+    - "Test all half-order endpoints"
+    - "Test order creation and filtering"
+    - "Test counter table status"
+    - "Verify WebSocket events"
+    - "Verify RBAC enforcement"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Starting PHASE 1: Backend Integration & Testing
+      - Three routers are created but not integrated into server.py
+      - All routers use services with proper timezone handling (UTC storage)
+      - WebSocket service is ready for event broadcasting
+      - Need to integrate routers and test all endpoints
+      - Focus on half-order flow, order creation, and counter operations
