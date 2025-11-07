@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
-from models import UserRole, OrderStatus, HalfOrderStatus
+from models import UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
+import re
 
 # User Schemas
 class UserCreate(BaseModel):
