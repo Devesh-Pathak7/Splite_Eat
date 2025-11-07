@@ -130,11 +130,11 @@ class HalfOrderSession(Base):
     menu_item_id = Column(Integer, nullable=False)
     menu_item_name = Column(String(200), nullable=False)
     status = Column(Enum(HalfOrderStatus), default=HalfOrderStatus.ACTIVE)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
     joined_by_table_no = Column(String(50), nullable=True)
     joined_by_customer_name = Column(String(100), nullable=True)
-    joined_at = Column(DateTime, nullable=True)
+    joined_at = Column(DateTime(timezone=True), nullable=True)
     
     restaurant = relationship("Restaurant", back_populates="half_order_sessions")
 
