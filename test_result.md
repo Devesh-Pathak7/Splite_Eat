@@ -417,3 +417,39 @@ agent_communication:
       - Counter Admins: counter1, counter2, counter3 / admin123
       
       Backend URL: http://localhost:8001
+  
+  - agent: "testing"
+    message: |
+      BACKEND TESTING COMPLETED - Critical Path Validation
+      
+      ✅ WORKING (6/10 tests passed):
+      - Auth: POST /api/auth/login (admin & counter1) - Both working
+      - Half-order: POST /api/half-order (create session) - Working
+      - Half-order: GET /api/half-order/active - Working
+      - Counter: GET /api/counter/tables - Working
+      - Counter: GET /api/counter/dashboard-stats - Working
+      
+      ❌ CRITICAL BUGS FOUND (4 failures):
+      
+      1. Half-order Join (POST /api/half-order/{id}/join) - TIMEZONE BUG
+         File: /app/backend/services/half_order_service.py:123
+         Error: "can't compare offset-naive and offset-aware datetimes"
+         Root Cause: MySQL DATETIME doesn't store timezone. Retrieved datetime is naive but compared with timezone-aware utc_now()
+         Fix Required: Add .replace(tzinfo=timezone.utc) to session.expires_at before comparison
+      
+      2. Order Creation (POST /api/orders) - TYPE ERROR
+         File: /app/backend/services/order_service.py:43
+         Error: "'OrderItem' object is not subscriptable"
+         Root Cause: items is list of Pydantic OrderItem objects, not dicts
+         Fix Required: Change item['price'] to item.price and item.get('quantity', 1) to item.quantity
+      
+      3. Get Orders (GET /api/orders) - SERIALIZATION ERROR
+         File: /app/backend/routers/orders_router.py
+         Error: "Unable to serialize unknown type: <class 'models.Order'>"
+         Root Cause: Order model objects not properly serialized in response
+         Fix Required: Ensure proper Pydantic schema serialization for Order objects
+      
+      4. Update Order Status (PATCH /api/orders/{id}) - BLOCKED
+         Cannot test due to order creation failure
+      
+      RECOMMENDATION: Fix the 3 critical bugs above before proceeding with frontend development.
