@@ -31,3 +31,33 @@ export const getStatusColor = (status) => {
   };
   return colors[status] || 'gray';
 };
+
+export const validateMobile = (mobile) => {
+  const mobileRegex = /^[6-9]\d{9}$/;
+  return mobileRegex.test(mobile);
+};
+
+export const getRestaurantTypeLabel = (type) => {
+  const labels = {
+    'veg': 'Pure Veg',
+    'non_veg': 'Non-Veg',
+    'mixed': 'Veg & Non-Veg'
+  };
+  return labels[type] || type;
+};
+
+export const getItemTypeIndicator = (itemType) => {
+  return getItemTypeBadge(itemType);
+};
+
+export const getTimeRemaining = (expiresAt) => {
+  if (!expiresAt) return 0;
+  try {
+    const expiryDate = typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
+    const now = new Date();
+    const diff = expiryDate - now;
+    return Math.max(0, Math.floor(diff / 1000 / 60));
+  } catch (error) {
+    return 0;
+  }
+};
