@@ -48,15 +48,19 @@ const AnalyticsPage = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const params = selectedRestaurant !== 'all' ? { restaurant_id: selectedRestaurant } : {};
+      const params = {};
+      if (selectedRestaurant !== 'all') params.restaurant_id = selectedRestaurant;
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
       
-      const overviewResponse = await axios.get(`${API_URL}/analytics/overview`, { params });
+      const overviewResponse = await axios.get(`${API_URL}/analytics/super-admin-overview`, { params });
       setOverview(overviewResponse.data);
 
       const popularResponse = await axios.get(`${API_URL}/analytics/popular-items`, { params: { ...params, limit: 10 } });
       setPopularItems(popularResponse.data);
     } catch (error) {
       toast.error('Failed to load analytics');
+      console.error(error);
     }
   };
 
