@@ -448,11 +448,14 @@ async def join_half_order(
     await db.refresh(order)
     
     # Broadcast half order joined
-    await manager.broadcast({
-        "type": "half_order_joined",
-        "session_id": session_id,
-        "order_id": order.id
-    }, session.restaurant_id)
+    await manager.broadcast(
+        restaurant_id=session.restaurant_id,
+        event_type="session.joined",
+        data={
+            "session_id": session_id,
+            "order_id": order.id
+        }
+    )
     
     return {"message": "Successfully joined half order", "order_id": order.id}
 
