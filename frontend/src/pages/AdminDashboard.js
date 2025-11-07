@@ -123,14 +123,21 @@ const AdminDashboard = () => {
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {restaurants.map(restaurant => (
-                <Card key={restaurant.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md hover:shadow-xl transition-all" data-testid={`restaurant-${restaurant.id}`}>
-                  <CardHeader>
-                    <CardTitle style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{restaurant.name}</CardTitle>
-                    <CardDescription>{restaurant.location}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Contact: {restaurant.contact}</p>
+              {restaurants.map(restaurant => {
+                const typeInfo = getRestaurantTypeLabel(restaurant.type || 'mixed');
+                return (
+                  <Card key={restaurant.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md hover:shadow-xl transition-all" data-testid={`restaurant-${restaurant.id}`}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{restaurant.name}</CardTitle>
+                        <Badge className={typeInfo.color}>
+                          {typeInfo.icon} {typeInfo.text}
+                        </Badge>
+                      </div>
+                      <CardDescription>{restaurant.location}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Contact: {restaurant.contact}</p>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => setEditingRestaurant(restaurant)} data-testid={`edit-restaurant-${restaurant.id}-btn`}>
                         <Edit className="w-3 h-3 mr-1" />Edit
