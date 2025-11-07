@@ -838,7 +838,7 @@ def test_cancel_order():
             "restaurant_id": TEST_RESTAURANT_ID,
             "table_no": "T9",
             "customer_name": "Ivy Desai",
-            "phone": "+919876543218",
+            "phone": "9876543218",
             "items": [
                 {
                     "menu_item_id": 1,
