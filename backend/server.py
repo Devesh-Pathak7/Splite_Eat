@@ -110,6 +110,9 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
             detail="Incorrect username or password"
         )
     
+    # Log login
+    await log_audit(db=db, user=user, action=AuditAction.LOGIN)
+    
     access_token = create_access_token(data={"sub": user.username})
     return {
         "access_token": access_token,
