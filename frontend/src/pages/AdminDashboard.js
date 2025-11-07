@@ -49,7 +49,7 @@ const AdminDashboard = () => {
       await axios.post(`${API_URL}/restaurants`, newRestaurant);
       toast.success('Restaurant added successfully');
       setShowAddRestaurant(false);
-      setNewRestaurant({ name: '', location: '', contact: '' });
+      setNewRestaurant({ name: '', location: '', contact: '', type: 'mixed' });
       fetchRestaurants();
     } catch (error) {
       toast.error('Failed to add restaurant');
