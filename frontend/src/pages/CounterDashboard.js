@@ -231,25 +231,47 @@ const CounterDashboardContent = () => {
               <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Active Orders</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').map(order => (
-                <Card key={order.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md" data-testid={`order-${order.id}`}>
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-start">
-                      <span style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Order #{order.id}</span>
-                      <Badge className={`
-                        ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ''}
-                        ${order.status === 'PREPARING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : ''}
-                        ${order.status === 'READY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}
-                      `}>
-                        {order.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>Table {order.table_no} • {order.customer_name}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="text-2xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                      ${order.total_amount.toFixed(2)}
-                    </div>
+              {orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').map(order => {
+                const isHalfOrder = order.table_no.includes('+');
+                const waitingTime = Math.floor((new Date() - new Date(order.created_at)) / 60000);
+                return (
+                  <Card key={order.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md hover:shadow-lg transition-all" data-testid={`order-${order.id}`}>
+                    <CardHeader>
+                      <CardTitle className="flex justify-between items-start">
+                        <span style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Order #{order.id}</span>
+                        <Badge className={`
+                          ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ''}
+                          ${order.status === 'PREPARING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : ''}
+                          ${order.status === 'READY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}
+                          ${order.status === 'SERVED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : ''}
+                        `}>
+                          {order.status === 'PENDING' && '🟡'}
+                          {order.status === 'PREPARING' && '🔵'}
+                          {order.status === 'READY' && '🟢'}
+                          {order.status === 'SERVED' && '✅'}
+                          {' '}{order.status}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          {isHalfOrder ? (
+                            <span className="text-sm font-medium text-orange-600 dark:text-amber-500">
+                              🍽️ Half-Order Match: {order.table_no}
+                            </span>
+                          ) : (
+                            <span>Table {order.table_no}</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Waiting {waitingTime}m • {order.customer_name}
+                        </div>
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-2xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        {formatCurrency(order.total_amount)}
+                      </div>
                     <div className="flex flex-wrap gap-2">
                       {order.status === 'PENDING' && (
                         <Button size="sm" onClick={() => updateOrderStatus(order.id, 'PREPARING')} className="bg-blue-500 hover:bg-blue-600" data-testid={`order-${order.id}-preparing-btn`}>
