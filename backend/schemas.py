@@ -22,8 +22,8 @@ class UserResponse(BaseModel):
     restaurant_id: Optional[int] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -51,8 +51,8 @@ class RestaurantResponse(BaseModel):
     type: RestaurantType
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 # Table Schemas
 class TableCreate(BaseModel):
@@ -68,8 +68,8 @@ class TableResponse(BaseModel):
     is_occupied: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 # Menu Item Schemas
 class MenuItemCreate(BaseModel):
@@ -102,8 +102,8 @@ class MenuItemResponse(BaseModel):
     available: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 # Half Order Session Schemas
 class HalfOrderCreate(BaseModel):
@@ -143,8 +143,8 @@ class HalfOrderResponse(BaseModel):
     joined_by_customer_name: Optional[str]
     joined_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 # Order Schemas
 class OrderItem(BaseModel):
@@ -172,8 +172,8 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 # Analytics Schemas
 class AnalyticsFilter(BaseModel):
@@ -195,8 +195,8 @@ class AuditLogResponse(BaseModel):
     ip_address: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
 
 # Override Login Schema
 class OverrideLoginRequest(BaseModel):
@@ -211,5 +211,5 @@ class ErrorLogResponse(BaseModel):
     endpoint: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+    # Deprecated Config class
