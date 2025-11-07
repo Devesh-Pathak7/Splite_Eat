@@ -380,17 +380,16 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Integrate half_order_router into server.py"
-    - "Integrate orders_router into server.py"
-    - "Integrate counter_router into server.py"
-    - "Test all half-order endpoints"
-    - "Test order creation and filtering"
-    - "Test counter table status"
-    - "Verify WebSocket events"
-    - "Verify RBAC enforcement"
-  stuck_tasks: []
+    - "Fix timezone comparison bug in half-order join"
+    - "Fix OrderItem subscriptable error in order creation"
+    - "Fix Order serialization in GET /api/orders"
+    - "Retest all failed endpoints after fixes"
+  stuck_tasks:
+    - "Half-order join endpoint with row-locking (POST /api/half-order/{id}/join)"
+    - "Order creation with paired orders (POST /api/orders)"
+    - "Order filtering (GET /api/orders)"
   test_all: false
-  test_priority: "high_first"
+  test_priority: "stuck_first"
 
 agent_communication:
   - agent: "main"
