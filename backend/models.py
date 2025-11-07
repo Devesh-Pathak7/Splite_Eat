@@ -196,4 +196,4 @@ class ErrorLog(Base):
     endpoint = Column(String(200))
     user_id = Column(Integer, nullable=True)
     request_data = Column(Text)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=utc_now)
