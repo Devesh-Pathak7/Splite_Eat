@@ -418,8 +418,20 @@ const CounterDashboardContent = () => {
               <div><Label>Name</Label><Input value={editingItem.name} onChange={(e) => setEditingItem({...editingItem, name: e.target.value})} data-testid="edit-menu-name-input" /></div>
               <div><Label>Description</Label><Input value={editingItem.description} onChange={(e) => setEditingItem({...editingItem, description: e.target.value})} data-testid="edit-menu-description-input" /></div>
               <div><Label>Category</Label><Input value={editingItem.category} onChange={(e) => setEditingItem({...editingItem, category: e.target.value})} data-testid="edit-menu-category-input" /></div>
-              <div><Label>Price</Label><Input type="number" step="0.01" value={editingItem.price} onChange={(e) => setEditingItem({...editingItem, price: e.target.value})} data-testid="edit-menu-price-input" /></div>
-              <div><Label>Half Price</Label><Input type="number" step="0.01" value={editingItem.half_price || ''} onChange={(e) => setEditingItem({...editingItem, half_price: e.target.value})} data-testid="edit-menu-half-price-input" /></div>
+              <div>
+                <Label>Type</Label>
+                <Select value={editingItem.item_type || 'veg'} onValueChange={(value) => setEditingItem({...editingItem, item_type: value})}>
+                  <SelectTrigger data-testid="edit-menu-type-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="veg">🟢 Veg</SelectItem>
+                    <SelectItem value="non_veg">🔴 Non-Veg</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Price (₹)</Label><Input type="number" step="0.01" value={editingItem.price} onChange={(e) => setEditingItem({...editingItem, price: e.target.value})} data-testid="edit-menu-price-input" /></div>
+              <div><Label>Half Price (₹)</Label><Input type="number" step="0.01" value={editingItem.half_price || ''} onChange={(e) => setEditingItem({...editingItem, half_price: e.target.value})} data-testid="edit-menu-half-price-input" /></div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={editingItem.available} onChange={(e) => setEditingItem({...editingItem, available: e.target.checked})} data-testid="edit-menu-available-checkbox" />
                 <Label>Available</Label>
