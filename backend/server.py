@@ -15,10 +15,14 @@ from dotenv import load_dotenv
 
 # Import models and utilities
 from database import get_db, engine, Base
-from models import User, Restaurant, Table, MenuItem, HalfOrderSession, Order, UserRole, OrderStatus, HalfOrderStatus
+from models import (
+    User, Restaurant, Table, MenuItem, HalfOrderSession, Order, AuditLog,
+    UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
+)
 from schemas import *
-from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role
+from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role, log_audit, check_restaurant_access
 from scheduler import start_scheduler, shutdown_scheduler
+from routes_enhanced import router as enhanced_router, validate_menu_item_type
 
 load_dotenv()
 
