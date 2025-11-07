@@ -642,6 +642,9 @@ async def websocket_endpoint(websocket: WebSocket, restaurant_id: int):
 # Include routers
 app.include_router(api_router)
 app.include_router(enhanced_router)
+app.include_router(half_order_router)
+app.include_router(orders_router)
+app.include_router(counter_router)
 
 # Startup and shutdown events
 @app.on_event("startup")
