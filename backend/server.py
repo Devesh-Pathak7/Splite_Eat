@@ -327,11 +327,14 @@ async def delete_menu_item(
     await db.commit()
     
     # Broadcast menu update
-    await manager.broadcast({
-        "type": "menu_update",
-        "action": "delete",
-        "item_id": item_id
-    }, restaurant_id)
+    await manager.broadcast(
+        restaurant_id=restaurant_id,
+        event_type="menu.update",
+        data={
+            "action": "delete",
+            "item_id": item_id
+        }
+    )
     
     return {"message": "Menu item deleted successfully"}
 
