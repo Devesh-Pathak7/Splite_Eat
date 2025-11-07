@@ -23,6 +23,23 @@ class HalfOrderStatus(str, enum.Enum):
     EXPIRED = "EXPIRED"
     COMPLETED = "COMPLETED"
 
+class RestaurantType(str, enum.Enum):
+    VEG = "veg"
+    NON_VEG = "non_veg"
+    MIXED = "mixed"
+
+class MenuItemType(str, enum.Enum):
+    VEG = "veg"
+    NON_VEG = "non_veg"
+
+class AuditAction(str, enum.Enum):
+    LOGIN = "LOGIN"
+    LOGOUT = "LOGOUT"
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    OVERRIDE_LOGIN = "OVERRIDE_LOGIN"
+
 class User(Base):
     __tablename__ = "users"
     
