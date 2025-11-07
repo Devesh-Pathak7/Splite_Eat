@@ -147,8 +147,11 @@ async def get_orders(
         result = await db.execute(query)
         orders = result.scalars().all()
         
+        # Import schema
+        from schemas import OrderResponse
+        
         return {
-            "orders": orders,
+            "orders": [OrderResponse.model_validate(order) for order in orders],
             "total": total,
             "page": page,
             "page_size": page_size,
