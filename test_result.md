@@ -154,27 +154,33 @@ backend:
 
   - task: "Half-order creation endpoint (POST /api/half-order)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routers/half_order_router.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Endpoint created with UTC timezone-aware expiry. Needs testing after integration."
+      - working: true
+        agent: "testing"
+        comment: "✓ TESTED: Half-order session creation works. Session ID=1 created with 30-minute expiry. Endpoint returns 201 with correct response structure."
 
   - task: "Half-order join endpoint with row-locking (POST /api/half-order/{id}/join)"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/backend/routers/half_order_router.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Atomic join with row-locking implemented. Returns 409 on conflict. Needs testing."
+      - working: false
+        agent: "testing"
+        comment: "✗ CRITICAL BUG: Timezone comparison error in /app/backend/services/half_order_service.py line 123. Error: 'can't compare offset-naive and offset-aware datetimes'. MySQL DATETIME columns don't store timezone info, so retrieved datetime is timezone-naive but code compares with timezone-aware utc_now(). FIX: Add .replace(tzinfo=timezone.utc) to session.expires_at before comparison."
 
   - task: "Half-order cancellation with rules (DELETE /api/half-order/{id})"
     implemented: true
