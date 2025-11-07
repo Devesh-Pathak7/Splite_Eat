@@ -35,7 +35,10 @@ def start_scheduler():
         id='expire_half_orders'
     )
     scheduler.start()
-    logger.info(\n        f\"Scheduler started - checking for expired sessions every \"\n        f\"{EXPIRY_JOB_INTERVAL_SECONDS}s ({interval_minutes:.1f} minutes)\"\n    )
+    logger.info(
+        f\"Scheduler started - checking for expired sessions every \"
+        f\"{EXPIRY_JOB_INTERVAL_SECONDS}s ({interval_minutes:.1f} minutes)\"
+    )
 
 def shutdown_scheduler():
     """Shutdown the scheduler gracefully"""
