@@ -44,4 +44,4 @@ def shutdown_scheduler():
     """Shutdown the scheduler gracefully"""
     if scheduler.running:
         scheduler.shutdown()
-        logger.info(\"Scheduler shutdown complete\")
+        logger.info("Scheduler shutdown complete")
