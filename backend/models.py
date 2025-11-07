@@ -110,6 +110,9 @@ class HalfOrderSession(Base):
     status = Column(Enum(HalfOrderStatus), default=HalfOrderStatus.ACTIVE)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime, nullable=False)
+    joined_by_table_no = Column(String(50), nullable=True)
+    joined_by_customer_name = Column(String(100), nullable=True)
+    joined_at = Column(DateTime, nullable=True)
     
     restaurant = relationship("Restaurant", back_populates="half_order_sessions")
 
