@@ -469,7 +469,12 @@ async def create_order(
 ):
     # Calculate total
     total_amount = sum(item.price * item.quantity for item in order_data.items)
-    items_json = json.dumps([item.model_dump() for item in order_data.items])
+    items_json = json.dumps([{
+        "menu_item_id": item.menu_item_id,
+        "name": item.name,
+        "quantity": item.quantity,
+        "price": item.price
+    } for item in order_data.items])
     
     order = Order(
         restaurant_id=restaurant_id,
