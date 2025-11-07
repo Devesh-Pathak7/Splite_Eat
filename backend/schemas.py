@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from models import UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
