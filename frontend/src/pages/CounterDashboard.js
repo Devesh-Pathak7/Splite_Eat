@@ -35,10 +35,12 @@ const CounterDashboardContent = () => {
     name: '',
     description: '',
     category: '',
+    item_type: 'veg',
     price: '',
     half_price: '',
     available: true
   });
+  const [halfOrderFilter, setHalfOrderFilter] = useState('active');
 
   const [newTable, setNewTable] = useState({
     table_no: '',
