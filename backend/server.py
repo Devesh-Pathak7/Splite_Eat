@@ -359,12 +359,13 @@ async def delete_menu_item(
 # ============ HALF ORDER ROUTES ============
 @api_router.get("/restaurants/{restaurant_id}/tables/{table_no}/half-orders", response_model=List[HalfOrderResponse])
 async def get_active_half_orders(restaurant_id: int, table_no: str, db: AsyncSession = Depends(get_db)):
+    # Get all active half-orders for the entire restaurant (not just this table)
     result = await db.execute(
         select(HalfOrderSession).where(
             HalfOrderSession.restaurant_id == restaurant_id,
-            HalfOrderSession.table_no == table_no,
-            HalfOrderSession.status == HalfOrderStatus.ACTIVE
-        )
+            HalfOrderSession.status == HalfOrderStatus.ACTIVE,
+            HalfOrderSession.expires_at > datetime.now(timezone.utc)
+        ).order_by(HalfOrderSession.created_at.desc())
     )
     return result.scalars().all()
 
