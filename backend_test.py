@@ -415,7 +415,7 @@ def test_join_same_session_twice():
         # Create new session
         payload = {
             "customer_name": "Charlie Patel",
-            "customer_mobile": "+919876543212",
+            "customer_mobile": "9876543212",
             "menu_item_id": 2
         }
         
