@@ -196,39 +196,48 @@ backend:
 
   - task: "Get active half-orders (GET /api/half-order/active)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routers/half_order_router.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Returns all active sessions restaurant-wide. Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "✓ TESTED: GET /api/half-order/active works correctly. Returns 200 with list of active sessions. Created session was found in the list."
 
   - task: "Order creation with paired orders (POST /api/orders)"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/backend/routers/orders_router.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Supports both half-order and full-order items. Needs testing."
+      - working: false
+        agent: "testing"
+        comment: "✗ CRITICAL BUG: TypeError in /app/backend/services/order_service.py line 43. Error: 'OrderItem' object is not subscriptable. The items parameter is a list of Pydantic OrderItem objects, not dicts. FIX: Change item['price'] to item.price and item.get('quantity', 1) to item.quantity throughout the function."
 
   - task: "Order filtering (GET /api/orders)"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/backend/routers/orders_router.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Filters: today/last_7/month/custom with pagination. Needs testing."
+      - working: false
+        agent: "testing"
+        comment: "✗ CRITICAL BUG: Serialization error when returning orders. Error: 'Unable to serialize unknown type: <class 'models.Order'>'. The endpoint returns Order model objects directly but they need to be converted to dict or use response_model properly. FIX: Ensure Order objects are properly serialized using Pydantic schemas."
 
   - task: "CSV export (GET /api/orders/export)"
     implemented: true
