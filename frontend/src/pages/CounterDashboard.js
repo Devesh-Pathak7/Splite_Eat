@@ -299,7 +299,8 @@ const CounterDashboardContent = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
 
@@ -337,7 +338,8 @@ const CounterDashboardContent = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
 
