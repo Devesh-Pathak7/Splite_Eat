@@ -238,17 +238,20 @@ async def create_menu_item(
     )
     
     # Broadcast menu update
-    await manager.broadcast({
-        "type": "menu_update",
-        "action": "create",
-        "item": {
-            "id": new_item.id,
-            "name": new_item.name,
-            "price": new_item.price,
-            "available": new_item.available,
-            "item_type": new_item.item_type.value
+    await manager.broadcast(
+        restaurant_id=restaurant_id,
+        event_type="menu.update",
+        data={
+            "action": "create",
+            "item": {
+                "id": new_item.id,
+                "name": new_item.name,
+                "price": new_item.price,
+                "available": new_item.available,
+                "item_type": new_item.item_type.value
+            }
         }
-    }, restaurant_id)
+    )
     
     return new_item
 
