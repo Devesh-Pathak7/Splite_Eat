@@ -76,6 +76,7 @@ class MenuItemCreate(BaseModel):
     name: str
     description: Optional[str] = None
     category: Optional[str] = None
+    item_type: MenuItemType = MenuItemType.VEG
     price: float
     half_price: Optional[float] = None
     available: bool = True
@@ -84,6 +85,7 @@ class MenuItemUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
+    item_type: Optional[MenuItemType] = None
     price: Optional[float] = None
     half_price: Optional[float] = None
     available: Optional[bool] = None
@@ -94,6 +96,7 @@ class MenuItemResponse(BaseModel):
     name: str
     description: Optional[str]
     category: Optional[str]
+    item_type: MenuItemType
     price: float
     half_price: Optional[float]
     available: bool
