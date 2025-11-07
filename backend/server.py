@@ -484,16 +484,19 @@ async def create_order(
     await db.refresh(order)
     
     # Broadcast new order
-    await manager.broadcast({
-        "type": "new_order",
-        "order": {
-            "id": order.id,
-            "table_no": order.table_no,
-            "customer_name": order.customer_name,
-            "total_amount": order.total_amount,
-            "status": order.status.value
+    await manager.broadcast(
+        restaurant_id=restaurant_id,
+        event_type="order.created",
+        data={
+            "order": {
+                "id": order.id,
+                "table_no": order.table_no,
+                "customer_name": order.customer_name,
+                "total_amount": order.total_amount,
+                "status": order.status.value
+            }
         }
-    }, restaurant_id)
+    )
     
     return order
 
