@@ -192,6 +192,19 @@ const AdminDashboard = () => {
               <div><Label>Name</Label><Input value={editingRestaurant.name} onChange={(e) => setEditingRestaurant({...editingRestaurant, name: e.target.value})} data-testid="edit-restaurant-name-input" /></div>
               <div><Label>Location</Label><Input value={editingRestaurant.location} onChange={(e) => setEditingRestaurant({...editingRestaurant, location: e.target.value})} data-testid="edit-restaurant-location-input" /></div>
               <div><Label>Contact</Label><Input value={editingRestaurant.contact} onChange={(e) => setEditingRestaurant({...editingRestaurant, contact: e.target.value})} data-testid="edit-restaurant-contact-input" /></div>
+              <div>
+                <Label>Restaurant Type</Label>
+                <Select value={editingRestaurant.type || 'mixed'} onValueChange={(value) => setEditingRestaurant({...editingRestaurant, type: value})}>
+                  <SelectTrigger data-testid="edit-restaurant-type-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="veg">🟢 Pure Veg</SelectItem>
+                    <SelectItem value="non_veg">🔴 Non-Veg Only</SelectItem>
+                    <SelectItem value="mixed">🟡 Veg & Non-Veg</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={updateRestaurant} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-edit-restaurant-btn">Update Restaurant</Button>
             </div>
           )}
