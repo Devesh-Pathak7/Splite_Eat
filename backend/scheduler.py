@@ -36,8 +36,8 @@ def start_scheduler():
     )
     scheduler.start()
     logger.info(
-        f\"Scheduler started - checking for expired sessions every \"
-        f\"{EXPIRY_JOB_INTERVAL_SECONDS}s ({interval_minutes:.1f} minutes)\"
+        f"Scheduler started - checking for expired sessions every "
+        f"{EXPIRY_JOB_INTERVAL_SECONDS}s ({interval_minutes:.1f} minutes)"
     )
 
 def shutdown_scheduler():
