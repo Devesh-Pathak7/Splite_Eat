@@ -247,10 +247,22 @@ async def create_menu_item(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.COUNTER_ADMIN]))
 ):
+    # Validate item type matches restaurant type
+    await validate_menu_item_type(restaurant_id, item_data.item_type, db)
+    
     new_item = MenuItem(restaurant_id=restaurant_id, **item_data.model_dump())
     db.add(new_item)
     await db.commit()
     await db.refresh(new_item)
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        user=current_user,
+        action=AuditAction.CREATE,
+        resource_type="menu_item",
+        resource_id=new_item.id
+    )
     
     # Broadcast menu update
     await manager.broadcast({
@@ -260,7 +272,8 @@ async def create_menu_item(
             "id": new_item.id,
             "name": new_item.name,
             "price": new_item.price,
-            "available": new_item.available
+            "available": new_item.available,
+            "item_type": new_item.item_type.value
         }
     }, restaurant_id)
     
