@@ -115,7 +115,7 @@ class MenuItem(Base):
     price = Column(Float, nullable=False)
     half_price = Column(Float, nullable=True)
     available = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=utc_now)
     
     restaurant = relationship("Restaurant", back_populates="menu_items")
 
