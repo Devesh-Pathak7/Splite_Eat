@@ -89,6 +89,7 @@ class MenuItem(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text)
     category = Column(String(100))
+    item_type = Column(Enum(MenuItemType), default=MenuItemType.VEG, nullable=False)
     price = Column(Float, nullable=False)
     half_price = Column(Float, nullable=True)
     available = Column(Boolean, default=True)
