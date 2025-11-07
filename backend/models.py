@@ -96,7 +96,10 @@ class Table(Base):
     qr_code = Column(String(255), unique=True, nullable=False)
     capacity = Column(Integer, default=4)
     is_occupied = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    status = Column(Enum(TableStatus), default=TableStatus.AVAILABLE, nullable=False)
+    occupied_since = Column(DateTime(timezone=True), nullable=True)
+    last_updated = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
     
     restaurant = relationship("Restaurant", back_populates="tables")
 
