@@ -164,6 +164,19 @@ const AdminDashboard = () => {
             <div><Label>Name</Label><Input value={newRestaurant.name} onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})} data-testid="add-restaurant-name-input" /></div>
             <div><Label>Location</Label><Input value={newRestaurant.location} onChange={(e) => setNewRestaurant({...newRestaurant, location: e.target.value})} data-testid="add-restaurant-location-input" /></div>
             <div><Label>Contact</Label><Input value={newRestaurant.contact} onChange={(e) => setNewRestaurant({...newRestaurant, contact: e.target.value})} data-testid="add-restaurant-contact-input" /></div>
+            <div>
+              <Label>Restaurant Type</Label>
+              <Select value={newRestaurant.type} onValueChange={(value) => setNewRestaurant({...newRestaurant, type: value})}>
+                <SelectTrigger data-testid="add-restaurant-type-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="veg">🟢 Pure Veg</SelectItem>
+                  <SelectItem value="non_veg">🔴 Non-Veg Only</SelectItem>
+                  <SelectItem value="mixed">🟡 Veg & Non-Veg</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={addRestaurant} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-add-restaurant-btn">Add Restaurant</Button>
           </div>
         </DialogContent>
