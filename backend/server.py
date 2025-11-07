@@ -281,7 +281,23 @@ async def create_menu_item(
 
 @api_router.get("/restaurants/{restaurant_id}/menu", response_model=List[MenuItemResponse])
 async def get_menu_items(restaurant_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(MenuItem).where(MenuItem.restaurant_id == restaurant_id))
+    # Get restaurant to check type
+    rest_result = await db.execute(select(Restaurant).where(Restaurant.id == restaurant_id))
+    restaurant = rest_result.scalar_one_or_none()
+    
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    
+    # Build query based on restaurant type
+    query = select(MenuItem).where(MenuItem.restaurant_id == restaurant_id)
+    
+    if restaurant.type == RestaurantType.VEG:
+        query = query.where(MenuItem.item_type == MenuItemType.VEG)
+    elif restaurant.type == RestaurantType.NON_VEG:
+        query = query.where(MenuItem.item_type == MenuItemType.NON_VEG)
+    # For MIXED, show all items
+    
+    result = await db.execute(query)
     return result.scalars().all()
 
 @api_router.put("/menu/{item_id}", response_model=MenuItemResponse)
