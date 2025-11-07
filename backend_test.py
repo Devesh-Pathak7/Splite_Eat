@@ -368,7 +368,7 @@ def test_join_half_order():
         payload = {
             "table_no": "T2",
             "customer_name": "Bob Singh",
-            "customer_mobile": "+919876543211"
+            "customer_mobile": "9876543211"
         }
         
         response = requests.post(
