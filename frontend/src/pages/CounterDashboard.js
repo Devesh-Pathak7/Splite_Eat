@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { LogOut, Moon, Sun, Plus, ShoppingBag, Users, Table as TableIcon, Menu, Edit, Trash2 } from 'lucide-react';
+import { LogOut, Moon, Sun, Plus, ShoppingBag, Users, Table as TableIcon, Menu, Edit, Trash2, Clock } from 'lucide-react';
+import { formatCurrency, getItemTypeIndicator, getTimeRemaining } from '../utils/helpers';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 
