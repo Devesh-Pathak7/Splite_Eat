@@ -901,7 +901,7 @@ def test_reopen_order():
             "restaurant_id": TEST_RESTAURANT_ID,
             "table_no": "T10",
             "customer_name": "Jack Menon",
-            "phone": "+919876543219",
+            "phone": "9876543219",
             "items": [
                 {
                     "menu_item_id": 1,
