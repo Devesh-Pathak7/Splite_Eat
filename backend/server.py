@@ -39,40 +39,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="SplitEat API")
 api_router = APIRouter(prefix="/api")
 
-# WebSocket connection manager
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[int, List[WebSocket]] = {}  # restaurant_id -> [websockets]
-    
-    async def connect(self, websocket: WebSocket, restaurant_id: int):
-        await websocket.accept()
-        if restaurant_id not in self.active_connections:
-            self.active_connections[restaurant_id] = []
-        self.active_connections[restaurant_id].append(websocket)
-        logger.info(f"Client connected to restaurant {restaurant_id}. Total connections: {len(self.active_connections.get(restaurant_id, []))}")
-    
-    def disconnect(self, websocket: WebSocket, restaurant_id: int):
-        if restaurant_id in self.active_connections:
-            self.active_connections[restaurant_id].remove(websocket)
-            if not self.active_connections[restaurant_id]:
-                del self.active_connections[restaurant_id]
-        logger.info(f"Client disconnected from restaurant {restaurant_id}")
-    
-    async def broadcast(self, message: dict, restaurant_id: int):
-        if restaurant_id in self.active_connections:
-            dead_connections = []
-            for connection in self.active_connections[restaurant_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception as e:
-                    logger.error(f"Error sending message: {e}")
-                    dead_connections.append(connection)
-            
-            # Remove dead connections
-            for conn in dead_connections:
-                self.disconnect(conn, restaurant_id)
-
-manager = ConnectionManager()
+# Import WebSocket manager from service
+from services.websocket_service import ws_manager as manager
 
 # CORS middleware
 app.add_middleware(
