@@ -117,7 +117,7 @@ user_problem_statement: |
 
 backend:
   - task: "Integrate half_order_router into server.py"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
@@ -126,10 +126,10 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Router created but not yet integrated into main server.py"
+        comment: "Router integrated into server.py. WebSocket manager from service layer is now being used."
 
   - task: "Integrate orders_router into server.py"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
@@ -138,10 +138,10 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Router created but not yet integrated into main server.py"
+        comment: "Router integrated into server.py. All order endpoints are now available."
 
   - task: "Integrate counter_router into server.py"
-    implemented: false
+    implemented: true
     working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
@@ -150,7 +150,7 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Router created but not yet integrated into main server.py"
+        comment: "Router integrated into server.py. Counter endpoints are now available."
 
   - task: "Half-order creation endpoint (POST /api/half-order)"
     implemented: true
