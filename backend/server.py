@@ -633,8 +633,9 @@ async def websocket_endpoint(websocket: WebSocket, restaurant_id: int):
     except WebSocketDisconnect:
         manager.disconnect(websocket, restaurant_id)
 
-# Include router
+# Include routers
 app.include_router(api_router)
+app.include_router(enhanced_router)
 
 # Startup and shutdown events
 @app.on_event("startup")
