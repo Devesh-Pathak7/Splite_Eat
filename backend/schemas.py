@@ -182,3 +182,34 @@ class AnalyticsFilter(BaseModel):
     end_date: Optional[str] = None
     category: Optional[str] = None
     status: Optional[str] = None
+
+# Audit Log Schemas
+class AuditLogResponse(BaseModel):
+    id: int
+    user_id: Optional[int]
+    username: Optional[str]
+    action: AuditAction
+    resource_type: Optional[str]
+    resource_id: Optional[int]
+    details: Optional[str]
+    ip_address: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Override Login Schema
+class OverrideLoginRequest(BaseModel):
+    override_key: str
+    target_username: str
+
+# Error Log Response
+class ErrorLogResponse(BaseModel):
+    id: int
+    error_type: Optional[str]
+    error_message: Optional[str]
+    endpoint: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
