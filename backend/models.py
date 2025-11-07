@@ -149,9 +149,29 @@ class Order(Base):
     items = Column(Text)  # JSON string of items
     total_amount = Column(Float, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    sent_to_kitchen_at = Column(DateTime(timezone=True), nullable=True)
+    sent_to_kitchen_by = Column(Integer, nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_by = Column(Integer, nullable=True)
+    cancel_reason = Column(Text, nullable=True)
     
     restaurant = relationship("Restaurant", back_populates="orders")
+
+class PairedOrder(Base):
+    __tablename__ = "paired_orders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    half_session_a = Column(Integer, ForeignKey("half_order_sessions.id", ondelete="CASCADE"), nullable=False)
+    half_session_b = Column(Integer, ForeignKey("half_order_sessions.id", ondelete="CASCADE"), nullable=False)
+    restaurant_id = Column(Integer, ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False)
+    menu_item_id = Column(Integer, nullable=False)
+    menu_item_name = Column(String(120), nullable=False)
+    total_price = Column(Float, nullable=False)
+    status = Column(Enum(PairedOrderStatus), default=PairedOrderStatus.PENDING, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    order_id = Column(Integer, nullable=True)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
