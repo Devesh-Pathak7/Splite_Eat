@@ -130,3 +130,28 @@ class Order(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     restaurant = relationship("Restaurant", back_populates="orders")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    username = Column(String(100))
+    action = Column(Enum(AuditAction), nullable=False)
+    resource_type = Column(String(100))
+    resource_id = Column(Integer, nullable=True)
+    details = Column(Text)
+    ip_address = Column(String(50))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class ErrorLog(Base):
+    __tablename__ = "error_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    error_type = Column(String(100))
+    error_message = Column(Text)
+    stack_trace = Column(Text)
+    endpoint = Column(String(200))
+    user_id = Column(Integer, nullable=True)
+    request_data = Column(Text)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
