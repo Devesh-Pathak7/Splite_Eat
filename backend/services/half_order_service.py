@@ -120,6 +120,9 @@ class HalfOrderService:
         
         # Check if expired
         now_utc = utc_now()
+        # Ensure timezone-aware comparison
+        if session.expires_at.tzinfo is None:
+            session.expires_at = session.expires_at.replace(tzinfo=timezone.utc)
         if session.expires_at <= now_utc:
             session.status = HalfOrderStatus.EXPIRED
             await db.commit()
