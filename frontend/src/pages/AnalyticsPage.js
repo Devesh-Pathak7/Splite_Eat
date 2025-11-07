@@ -88,9 +88,10 @@ const AnalyticsPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
+        {/* Filters */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
-            <SelectTrigger className="w-64 bg-white/50 dark:bg-gray-700/50 backdrop-blur-md" data-testid="restaurant-filter">
+            <SelectTrigger className="sm:w-64 bg-white/60 dark:bg-gray-700/60 backdrop-blur-md" data-testid="restaurant-filter">
               <SelectValue placeholder="Select Restaurant" />
             </SelectTrigger>
             <SelectContent>
@@ -100,9 +101,30 @@ const AnalyticsPage = () => {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="sm:w-48 bg-white/60 dark:bg-gray-700/60 backdrop-blur-md"
+            placeholder="Start Date"
+          />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="sm:w-48 bg-white/60 dark:bg-gray-700/60 backdrop-blur-md"
+            placeholder="End Date"
+          />
+          <Button
+            onClick={fetchAnalytics}
+            className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700"
+          >
+            Apply Filters
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="revenue-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Total Revenue</CardTitle>
