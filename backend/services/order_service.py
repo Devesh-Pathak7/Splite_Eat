@@ -40,7 +40,7 @@ class OrderService:
             pass
         
         # Calculate total
-        total_amount = sum(item['price'] * item.get('quantity', 1) for item in items)
+        total_amount = sum(item.price * item.quantity for item in items)
         
         # Lock paired orders if any
         paired_orders = []
