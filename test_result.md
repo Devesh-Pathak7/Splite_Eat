@@ -265,15 +265,18 @@ backend:
 
   - task: "Counter tables status (GET /api/counter/tables)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routers/counter_router.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Returns table status with auto-update. Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "✓ TESTED: GET /api/counter/tables works correctly. Returns 200 with table status summary (5 total, 4 available) and detailed table information."
 
   - task: "WebSocket event broadcasting"
     implemented: true
