@@ -312,22 +312,29 @@ const CounterDashboardContent = () => {
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {menuItems.map(item => (
-                <Card key={item.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md" data-testid={`menu-item-${item.id}`}>
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-start">
-                      <span style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{item.name}</span>
-                      <Badge variant={item.available ? 'default' : 'secondary'}>
-                        {item.available ? 'Available' : 'Unavailable'}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>{item.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-xl font-bold text-orange-600 dark:text-amber-500">${item.price}</span>
-                      {item.half_price && <span className="text-sm text-gray-600">Half: ${item.half_price}</span>}
-                    </div>
+              {menuItems.map(item => {
+                const typeInfo = getItemTypeIndicator(item.item_type || 'veg');
+                return (
+                  <Card key={item.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md" data-testid={`menu-item-${item.id}`}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-lg font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{item.name}</span>
+                        <div className="flex gap-2">
+                          <Badge className={typeInfo.color}>
+                            {typeInfo.icon}
+                          </Badge>
+                          <Badge variant={item.available ? 'default' : 'secondary'}>
+                            {item.available ? 'Available' : 'Unavailable'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardDescription>{item.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-xl font-bold text-orange-600 dark:text-amber-500">{formatCurrency(item.price)}</span>
+                        {item.half_price && <span className="text-sm text-gray-600">Half: {formatCurrency(item.half_price)}</span>}
+                      </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => setEditingItem(item)} data-testid={`edit-menu-${item.id}-btn`}>
                         <Edit className="w-3 h-3 mr-1" />Edit
