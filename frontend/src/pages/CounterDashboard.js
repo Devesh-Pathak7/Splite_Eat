@@ -389,8 +389,20 @@ const CounterDashboardContent = () => {
             <div><Label>Name</Label><Input value={newMenuItem.name} onChange={(e) => setNewMenuItem({...newMenuItem, name: e.target.value})} data-testid="add-menu-name-input" /></div>
             <div><Label>Description</Label><Input value={newMenuItem.description} onChange={(e) => setNewMenuItem({...newMenuItem, description: e.target.value})} data-testid="add-menu-description-input" /></div>
             <div><Label>Category</Label><Input value={newMenuItem.category} onChange={(e) => setNewMenuItem({...newMenuItem, category: e.target.value})} data-testid="add-menu-category-input" /></div>
-            <div><Label>Price</Label><Input type="number" step="0.01" value={newMenuItem.price} onChange={(e) => setNewMenuItem({...newMenuItem, price: e.target.value})} data-testid="add-menu-price-input" /></div>
-            <div><Label>Half Price (optional)</Label><Input type="number" step="0.01" value={newMenuItem.half_price} onChange={(e) => setNewMenuItem({...newMenuItem, half_price: e.target.value})} data-testid="add-menu-half-price-input" /></div>
+            <div>
+              <Label>Type</Label>
+              <Select value={newMenuItem.item_type} onValueChange={(value) => setNewMenuItem({...newMenuItem, item_type: value})}>
+                <SelectTrigger data-testid="add-menu-type-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="veg">🟢 Veg</SelectItem>
+                  <SelectItem value="non_veg">🔴 Non-Veg</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Price (₹)</Label><Input type="number" step="0.01" value={newMenuItem.price} onChange={(e) => setNewMenuItem({...newMenuItem, price: e.target.value})} data-testid="add-menu-price-input" /></div>
+            <div><Label>Half Price (₹, optional)</Label><Input type="number" step="0.01" value={newMenuItem.half_price} onChange={(e) => setNewMenuItem({...newMenuItem, half_price: e.target.value})} data-testid="add-menu-half-price-input" /></div>
             <Button onClick={addMenuItem} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-add-menu-btn">Add Item</Button>
           </div>
         </DialogContent>
