@@ -110,10 +110,23 @@ class HalfOrderCreate(BaseModel):
     customer_name: str
     customer_mobile: str
     menu_item_id: int
+    
+    @validator('customer_mobile')
+    def validate_mobile(cls, v):
+        if not re.match(r'^\d{10}$', v):
+            raise ValueError('Mobile number must be 10 digits')
+        return v
 
 class HalfOrderJoin(BaseModel):
     customer_name: str
     customer_mobile: str
+    table_no: str
+    
+    @validator('customer_mobile')
+    def validate_mobile(cls, v):
+        if not re.match(r'^\d{10}$', v):
+            raise ValueError('Mobile number must be 10 digits')
+        return v
 
 class HalfOrderResponse(BaseModel):
     id: int
@@ -126,6 +139,9 @@ class HalfOrderResponse(BaseModel):
     status: HalfOrderStatus
     created_at: datetime
     expires_at: datetime
+    joined_by_table_no: Optional[str]
+    joined_by_customer_name: Optional[str]
+    joined_at: Optional[datetime]
 
     class Config:
         from_attributes = True
