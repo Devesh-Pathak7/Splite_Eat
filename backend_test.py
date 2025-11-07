@@ -497,7 +497,7 @@ def test_cancel_half_order_customer():
         # Create new session
         payload = {
             "customer_name": "Frank Gupta",
-            "customer_mobile": "+919876543215",
+            "customer_mobile": "9876543215",
             "menu_item_id": 1
         }
         
