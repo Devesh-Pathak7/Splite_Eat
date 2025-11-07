@@ -154,9 +154,13 @@ class OrderItem(BaseModel):
     price: float
 
 class OrderCreate(BaseModel):
+    restaurant_id: int
+    table_no: str
     customer_name: str
     phone: str
     items: List[OrderItem]
+    paired_order_ids: Optional[List[int]] = None
+    idempotency_key: Optional[str] = None
 
 class OrderUpdateStatus(BaseModel):
     status: OrderStatus
