@@ -272,7 +272,7 @@ def test_create_half_order():
         headers = {"Authorization": f"Bearer {tokens['super_admin']}"}
         payload = {
             "customer_name": "Alice Kumar",
-            "customer_mobile": "+919876543210",
+            "customer_mobile": "9876543210",
             "menu_item_id": 1
         }
         
