@@ -6,9 +6,11 @@ import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ArrowLeft, Moon, Sun, DollarSign, ShoppingBag, Users } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { ArrowLeft, Moon, Sun, DollarSign, ShoppingBag, Users, TrendingUp } from 'lucide-react';
+import { formatCurrency } from '../utils/helpers';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 
