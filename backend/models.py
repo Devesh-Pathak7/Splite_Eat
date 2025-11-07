@@ -67,7 +67,7 @@ class User(Base):
     password = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.CUSTOMER)
     restaurant_id = Column(Integer, ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=utc_now)
     
     restaurant = relationship("Restaurant", back_populates="users")
 
