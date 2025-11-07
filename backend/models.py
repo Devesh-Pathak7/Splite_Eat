@@ -43,6 +43,21 @@ class AuditAction(str, enum.Enum):
     UPDATE = "UPDATE"
     DELETE = "DELETE"
     OVERRIDE_LOGIN = "OVERRIDE_LOGIN"
+    CANCEL = "CANCEL"
+    REOPEN = "REOPEN"
+    SEND_TO_KITCHEN = "SEND_TO_KITCHEN"
+    JOIN_SESSION = "JOIN_SESSION"
+    EXPIRE_SESSION = "EXPIRE_SESSION"
+
+class TableStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    OCCUPIED = "OCCUPIED"
+    RESERVED = "RESERVED"
+
+class PairedOrderStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 class User(Base):
     __tablename__ = "users"
