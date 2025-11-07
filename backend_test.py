@@ -549,7 +549,7 @@ def test_cancel_half_order_counter_admin():
         super_headers = {"Authorization": f"Bearer {tokens['super_admin']}"}
         payload = {
             "customer_name": "Grace Iyer",
-            "customer_mobile": "+919876543216",
+            "customer_mobile": "9876543216",
             "menu_item_id": 1
         }
         
