@@ -174,17 +174,17 @@ class PairedOrder(Base):
     order_id = Column(Integer, nullable=True)
 
 class AuditLog(Base):
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_log"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     username = Column(String(100))
-    action = Column(Enum(AuditAction), nullable=False)
-    resource_type = Column(String(100))
-    resource_id = Column(Integer, nullable=True)
-    details = Column(Text)
+    action = Column(String(100), nullable=False)
+    resource_type = Column(String(50), nullable=False)
+    resource_id = Column(String(100))
+    meta = Column(JSON)
     ip_address = Column(String(50))
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 class ErrorLog(Base):
     __tablename__ = "error_logs"
