@@ -605,7 +605,7 @@ def test_create_full_order():
             "restaurant_id": TEST_RESTAURANT_ID,
             "table_no": "T8",
             "customer_name": "Henry Nair",
-            "phone": "+919876543217",
+            "phone": "9876543217",
             "items": [
                 {
                     "menu_item_id": 1,
