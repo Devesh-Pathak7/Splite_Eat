@@ -79,7 +79,7 @@ class Restaurant(Base):
     location = Column(String(300))
     contact = Column(String(50))
     type = Column(Enum(RestaurantType), default=RestaurantType.MIXED, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=utc_now)
     
     users = relationship("User", back_populates="restaurant", cascade="all, delete-orphan")
     tables = relationship("Table", back_populates="restaurant", cascade="all, delete-orphan")
