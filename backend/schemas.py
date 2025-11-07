@@ -35,17 +35,20 @@ class RestaurantCreate(BaseModel):
     name: str
     location: Optional[str] = None
     contact: Optional[str] = None
+    type: RestaurantType = RestaurantType.MIXED
 
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
     location: Optional[str] = None
     contact: Optional[str] = None
+    type: Optional[RestaurantType] = None
 
 class RestaurantResponse(BaseModel):
     id: int
     name: str
     location: Optional[str]
     contact: Optional[str]
+    type: RestaurantType
     created_at: datetime
 
     class Config:
