@@ -9,6 +9,7 @@ from sqlalchemy import select
 import os
 from models import User, UserRole
 from database import get_db
+from models import AuditLog, AuditAction
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
