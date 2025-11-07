@@ -24,6 +24,11 @@ from auth import get_password_hash, verify_password, create_access_token, get_cu
 from scheduler import start_scheduler, shutdown_scheduler
 from routes_enhanced import router as enhanced_router, validate_menu_item_type
 
+# Import new routers
+from routers.half_order_router import router as half_order_router
+from routers.orders_router import router as orders_router
+from routers.counter_router import router as counter_router
+
 load_dotenv()
 
 # Configure logging
