@@ -295,16 +295,19 @@ async def update_menu_item(
     await db.refresh(item)
     
     # Broadcast menu update
-    await manager.broadcast({
-        "type": "menu_update",
-        "action": "update",
-        "item": {
-            "id": item.id,
-            "name": item.name,
-            "price": item.price,
-            "available": item.available
+    await manager.broadcast(
+        restaurant_id=item.restaurant_id,
+        event_type="menu.update",
+        data={
+            "action": "update",
+            "item": {
+                "id": item.id,
+                "name": item.name,
+                "price": item.price,
+                "available": item.available
+            }
         }
-    }, item.restaurant_id)
+    )
     
     return item
 
