@@ -119,12 +119,15 @@ class HalfOrderService:
         if session.status != HalfOrderStatus.ACTIVE:
             raise ValueError(f"Session is not active (status: {session.status})")
         
-        # Check if expired
-        now_utc = utc_now()
-        # Ensure timezone-aware comparison
-        if session.expires_at.tzinfo is None:
-            session.expires_at = session.expires_at.replace(tzinfo=timezone.utc)
-        if session.expires_at <= now_utc:
+        # Check if expired (IST timezone)
+        now_ist = ist_now()
+        expires_at = session.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = IST.localize(expires_at)
+        elif expires_at.tzinfo != IST:
+            expires_at = expires_at.astimezone(IST)
+        
+        if expires_at <= now_ist:
             session.status = HalfOrderStatus.EXPIRED
             await db.commit()
             raise ValueError("Session has expired")
