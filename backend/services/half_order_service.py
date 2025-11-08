@@ -286,7 +286,7 @@ class HalfOrderService:
     @staticmethod
     async def expire_sessions(db: AsyncSession):
         """Background job to expire sessions - returns count of expired"""
-        now_utc = utc_now()
+        now_ist = ist_now()
         
         result = await db.execute(
             select(HalfOrderSession)
@@ -297,12 +297,14 @@ class HalfOrderService:
         expired_count = 0
         
         for session in sessions:
-            # Fix timezone-naive comparison
+            # Ensure timezone-aware comparison with IST
             expires_at = session.expires_at
             if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                expires_at = IST.localize(expires_at)
+            elif expires_at.tzinfo != IST:
+                expires_at = expires_at.astimezone(IST)
             
-            if expires_at <= now_utc:
+            if expires_at <= now_ist:
                 session.status = HalfOrderStatus.EXPIRED
             
             # Cancel any pending paired orders
