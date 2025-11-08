@@ -289,19 +289,20 @@ class HalfOrderService:
         
         result = await db.execute(
             select(HalfOrderSession)
-            .where(
-                and_(
-                    HalfOrderSession.status == HalfOrderStatus.ACTIVE,
-                    HalfOrderSession.expires_at <= now_utc
-                )
-            )
+            .where(HalfOrderSession.status == HalfOrderStatus.ACTIVE)
         )
         
         sessions = result.scalars().all()
         expired_count = 0
         
         for session in sessions:
-            session.status = HalfOrderStatus.EXPIRED
+            # Fix timezone-naive comparison
+            expires_at = session.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            if expires_at <= now_utc:
+                session.status = HalfOrderStatus.EXPIRED
             
             # Cancel any pending paired orders
             paired_result = await db.execute(
