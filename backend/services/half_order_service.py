@@ -86,8 +86,8 @@ class HalfOrderService:
         
         logger.info(
             f"Half-session {session.id} created - "
-            f"Created: {now_utc.isoformat()}, Expires: {expires_at_utc.isoformat()}, "
-            f"TTL: {HALF_ORDER_TTL_MINUTES} minutes"
+            f"Created: {created_at_ist.isoformat()}, Expires: {expires_at.isoformat()}, "
+            f"TTL: {ttl_minutes} minutes"
         )
         
         return session
