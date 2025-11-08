@@ -79,7 +79,7 @@ class HalfOrderService:
                 "restaurant_id": restaurant_id,
                 "table_no": table_no,
                 "menu_item_id": menu_item_id,
-                "expires_at": expires_at_utc.isoformat()
+                "expires_at": expires_at.isoformat()
             },
             ip_address=ip_address
         )
