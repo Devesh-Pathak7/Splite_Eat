@@ -61,8 +61,8 @@ class HalfOrderService:
             menu_item_id=menu_item_id,
             menu_item_name=menu_item.name,
             status=HalfOrderStatus.ACTIVE,
-            created_at=now_utc,
-            expires_at=expires_at_utc
+            created_at=created_at_ist,
+            expires_at=expires_at
         )
         
         db.add(session)
