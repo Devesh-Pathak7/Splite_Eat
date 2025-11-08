@@ -3,10 +3,19 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from database import Base
 import enum
+import pytz
+
+# IST Timezone
+IST = pytz.timezone('Asia/Kolkata')
 
 # Timezone-aware UTC datetime helper
 def utc_now():
+    """Get current UTC time with timezone info"""
     return datetime.now(timezone.utc)
+
+def ist_now():
+    """Get current IST time"""
+    return datetime.now(IST)
 
 class UserRole(str, enum.Enum):
     SUPER_ADMIN = "super_admin"
