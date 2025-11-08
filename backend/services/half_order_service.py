@@ -47,9 +47,10 @@ class HalfOrderService:
         if not menu_item.half_price:
             raise ValueError(f"Menu item {menu_item.name} does not support half orders")
         
-        # Calculate expiry with UTC timezone
-        now_utc = utc_now()
-        expires_at_utc = now_utc + timedelta(minutes=HALF_ORDER_TTL_MINUTES)
+        # Set expiry time based on TTL in IST
+        ttl_minutes = int(os.getenv('HALF_ORDER_TTL_MINUTES', '30'))
+        created_at_ist = ist_now()
+        expires_at = created_at_ist + timedelta(minutes=ttl_minutes)
         
         # Create session
         session = HalfOrderSession(
