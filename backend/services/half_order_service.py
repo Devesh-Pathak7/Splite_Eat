@@ -349,6 +349,19 @@ class HalfOrderService:
         return result.scalars().all()
     
     @staticmethod
+    async def get_session_join_count(db: AsyncSession, session_id: int) -> int:
+        """Get the number of customers who joined a session"""
+        result = await db.execute(
+            select(PairedOrder).where(
+                or_(
+                    PairedOrder.half_session_a == session_id,
+                    PairedOrder.half_session_b == session_id
+                )
+            )
+        )
+        return len(result.scalars().all())
+    
+    @staticmethod
     async def expire_sessions(db: AsyncSession):
         """Background job to expire sessions - returns count of expired"""
         now_ist = ist_now()
