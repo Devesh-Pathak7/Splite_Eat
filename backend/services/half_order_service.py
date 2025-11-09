@@ -47,6 +47,43 @@ class HalfOrderService:
         if not menu_item.half_price:
             raise ValueError(f"Menu item {menu_item.name} does not support half orders")
         
+        # Check for existing ACTIVE sessions for same menu item in same restaurant
+        now_ist = ist_now()
+        existing_result = await db.execute(
+            select(HalfOrderSession)
+            .where(
+                and_(
+                    HalfOrderSession.restaurant_id == restaurant_id,
+                    HalfOrderSession.menu_item_id == menu_item_id,
+                    HalfOrderSession.status == HalfOrderStatus.ACTIVE
+                )
+            )
+        )
+        existing_sessions = existing_result.scalars().all()
+        
+        # Filter out expired sessions
+        valid_existing = []
+        for sess in existing_sessions:
+            expires_at = sess.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = IST.localize(expires_at)
+            elif expires_at.tzinfo != IST:
+                expires_at = expires_at.astimezone(IST)
+            
+            if expires_at > now_ist:
+                valid_existing.append(sess)
+        
+        if valid_existing:
+            # Found active session(s) for same item - suggest joining instead
+            session_info = ", ".join([
+                f"Session #{s.id} by Table {s.table_no} ({s.customer_name})"
+                for s in valid_existing[:3]  # Show max 3
+            ])
+            raise ValueError(
+                f"Active half-order already exists for {menu_item.name}. "
+                f"Please join existing session(s): {session_info}"
+            )
+        
         # Set expiry time based on TTL in IST
         ttl_minutes = int(os.getenv('HALF_ORDER_TTL_MINUTES', '30'))
         created_at_ist = ist_now()
