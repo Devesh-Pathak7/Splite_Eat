@@ -230,6 +230,41 @@ class HalfOrderService:
         db.add(paired_order)
         await db.flush()
         
+        # AUTO-CREATE ORDER for Counter Dashboard visibility
+        # When someone joins, create a full order combining both customers
+        from models import Order
+        import json
+        
+        order = Order(
+            restaurant_id=session.restaurant_id,
+            table_no=f"{session.table_no}+{joiner_table_no}",  # Combined tables
+            customer_name=f"{session.customer_name} & {joiner_name}",  # Both customers
+            phone=f"{session.customer_mobile}, {joiner_mobile}",  # Both phones
+            items=json.dumps([{
+                "menu_item_id": menu_item.id,
+                "name": menu_item.name,
+                "quantity": 1,
+                "price": total_price,
+                "type": "paired",
+                "half_session_id": session.id,
+                "paired_order_id": paired_order.id
+            }]),
+            total_amount=total_price,
+            status=OrderStatus.PENDING,
+            created_at=utc_now()
+        )
+        
+        db.add(order)
+        await db.flush()
+        
+        # Link order to paired order
+        paired_order.order_id = order.id
+        
+        logger.info(
+            f"Auto-created Order #{order.id} for paired half-order session {session.id} "
+            f"(Tables {session.table_no} + {joiner_table_no})"
+        )
+        
         # Log audit
         await log_audit(
             db=db,
