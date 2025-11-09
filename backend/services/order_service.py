@@ -39,8 +39,12 @@ class OrderService:
             # (implement idempotency table if needed)
             pass
         
-        # Calculate total
-        total_amount = sum(item.price * item.quantity for item in items)
+        # Calculate total (items is list of Pydantic models)
+        total_amount = sum(
+            (item.price if hasattr(item, 'price') else item['price']) * 
+            (item.quantity if hasattr(item, 'quantity') else item.get('quantity', 1))
+            for item in items
+        )
         
         # Lock paired orders if any
         paired_orders = []
