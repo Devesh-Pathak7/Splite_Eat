@@ -648,6 +648,18 @@ async def startup_event():
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created")
     
+    # Auto-seed if database is empty
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(User).limit(1))
+            if not result.scalar_one_or_none():
+                logger.info("Database empty - auto-seeding data...")
+                import subprocess
+                subprocess.run(['python', '/app/backend/seed_db.py'], cwd='/app/backend')
+                logger.info("Database seeded successfully")
+    except Exception as e:
+        logger.warning(f"Auto-seed check failed: {e}")
+    
     # Start scheduler
     start_scheduler()
     logger.info("Application started")
