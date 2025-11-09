@@ -153,8 +153,8 @@ class HalfOrderService:
             raise ValueError("Half-order session not found")
         
         # Validation checks
-        if session.status != HalfOrderStatus.ACTIVE:
-            raise ValueError(f"Session is not active (status: {session.status})")
+        if session.status not in [HalfOrderStatus.ACTIVE, HalfOrderStatus.JOINED]:
+            raise ValueError(f"Session is not available for joining (status: {session.status})")
         
         # Check if expired (IST timezone)
         now_ist = ist_now()
@@ -173,11 +173,33 @@ class HalfOrderService:
         if session.table_no == joiner_table_no:
             raise ValueError("Cannot join your own table's half-order")
         
-        # Update session with joiner info
-        session.status = HalfOrderStatus.JOINED
-        session.joined_by_table_no = joiner_table_no
-        session.joined_by_customer_name = joiner_name
-        session.joined_at = now_utc
+        # Check if this table already joined
+        existing_paired = await db.execute(
+            select(PairedOrder).where(
+                and_(
+                    or_(
+                        PairedOrder.half_session_a == session.id,
+                        PairedOrder.half_session_b == session.id
+                    ),
+                    PairedOrder.joiner_table_no == joiner_table_no
+                )
+            )
+        )
+        if existing_paired.scalar_one_or_none():
+            raise ValueError(f"Table {joiner_table_no} has already joined this session")
+        
+        # Update session status to JOINED (allows multiple joins)
+        if session.status == HalfOrderStatus.ACTIVE:
+            session.status = HalfOrderStatus.JOINED
+            session.joined_by_table_no = joiner_table_no
+            session.joined_by_customer_name = joiner_name
+            session.joined_at = now_ist
+        
+        # Track additional joiners in session metadata
+        if not hasattr(session, 'total_joiners'):
+            session.total_joiners = 1
+        else:
+            session.total_joiners += 1
         
         # Get menu item for pricing
         result = await db.execute(
