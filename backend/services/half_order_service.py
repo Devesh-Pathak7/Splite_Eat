@@ -213,7 +213,7 @@ class HalfOrderService:
         # Calculate total price (2 half orders)
         total_price = (menu_item.half_price * 2) if menu_item.half_price else menu_item.price
         
-        # Create paired order
+        # Create paired order with joiner tracking
         paired_order = PairedOrder(
             half_session_a=session.id,
             half_session_b=session.id,  # Will be updated in checkout if there's a second session
@@ -221,7 +221,10 @@ class HalfOrderService:
             menu_item_id=menu_item.id,
             menu_item_name=menu_item.name,
             total_price=total_price,
-            status=PairedOrderStatus.PENDING
+            status=PairedOrderStatus.PENDING,
+            joiner_table_no=joiner_table_no,
+            joiner_customer_name=joiner_name,
+            joiner_customer_mobile=joiner_mobile
         )
         
         db.add(paired_order)
