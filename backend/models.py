@@ -181,6 +181,10 @@ class PairedOrder(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     order_id = Column(Integer, nullable=True)
+    # Track joiner details for concurrency
+    joiner_table_no = Column(String(20), nullable=True)
+    joiner_customer_name = Column(String(100), nullable=True)
+    joiner_customer_mobile = Column(String(15), nullable=True)
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
