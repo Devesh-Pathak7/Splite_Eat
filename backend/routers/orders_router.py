@@ -73,10 +73,12 @@ async def create_order(
         return result
         
     except ValueError as e:
+        logger.error(f"Validation error creating order: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating order: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create order")
+        # Return the actual error message for debugging
+        raise HTTPException(status_code=500, detail=f"Failed to create order: {str(e)}")
 
 
 @router.get("", response_model=dict)
