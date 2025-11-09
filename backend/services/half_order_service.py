@@ -10,7 +10,8 @@ import os
 
 from models import (
     HalfOrderSession, PairedOrder, MenuItem, User,
-    HalfOrderStatus, PairedOrderStatus, utc_now, ist_now, IST
+    HalfOrderStatus, PairedOrderStatus, utc_now, ist_now, IST,
+    Order, OrderStatus
 )
 from services.audit_service import log_audit
 
