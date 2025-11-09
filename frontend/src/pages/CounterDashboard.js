@@ -65,12 +65,20 @@ const CounterDashboardContent = () => {
   const handleWebSocketMessage = (message) => {
     switch (message.type) {
       case 'new_order':
+      case 'order.created':
         fetchOrders();
         toast.success('New order received!');
         break;
+      case 'order.status_updated':
+        fetchOrders();
+        break;
       case 'half_order_created':
       case 'half_order_joined':
+      case 'session.created':
+      case 'session.joined':
+      case 'paired.created':
         fetchHalfOrders();
+        fetchOrders(); // Refresh orders when half-orders are joined
         break;
       default:
         break;
