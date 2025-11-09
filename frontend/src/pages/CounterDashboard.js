@@ -79,10 +79,15 @@ const CounterDashboardContent = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await axios.get(`${API_URL}/restaurants/${user.restaurant_id}/orders`);
-      setOrders(response.data);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${API_URL}/orders?restaurant_id=${user.restaurant_id}&page=1&page_size=100`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setOrders(response.data.orders || []);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
+      setOrders([]);
     }
   };
 
