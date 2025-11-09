@@ -128,10 +128,16 @@ const CounterDashboardContent = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      await axios.put(`${API_URL}/orders/${orderId}/status`, { status: newStatus });
+      const token = localStorage.getItem('token');
+      await axios.patch(
+        `${API_URL}/orders/${orderId}`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       toast.success('Order status updated');
       fetchOrders();
     } catch (error) {
+      console.error('Status update error:', error);
       toast.error('Failed to update order status');
     }
   };
