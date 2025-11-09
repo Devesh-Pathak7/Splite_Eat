@@ -67,13 +67,23 @@ class OrderService:
                 
                 paired_orders.append(paired_order)
         
-        # Create the order
+        # Create the order - serialize items properly
+        items_json = json.dumps([
+            {
+                "menu_item_id": item.menu_item_id if hasattr(item, 'menu_item_id') else item.get('menu_item_id'),
+                "name": item.name if hasattr(item, 'name') else item.get('name'),
+                "quantity": item.quantity if hasattr(item, 'quantity') else item.get('quantity', 1),
+                "price": item.price if hasattr(item, 'price') else item.get('price')
+            }
+            for item in items
+        ])
+        
         order = Order(
             restaurant_id=restaurant_id,
             table_no=table_no,
             customer_name=customer_name,
             phone=phone,
-            items=json.dumps(items),
+            items=items_json,
             total_amount=total_amount,
             status=OrderStatus.PENDING,
             created_at=utc_now()
