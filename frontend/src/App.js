@@ -42,6 +42,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} replace /> : <LoginPage />} />
       <Route path="/menu/:restaurant_id/:table_no" element={<MenuPage />} />
+      <Route path="/my-orders/:restaurant_id/:table_no" element={<CustomerDashboard />} />
       <Route
         path="/counter"
         element={
