@@ -121,7 +121,23 @@ async def join_half_session(
             }
         )
         
-        logger.info(f"Session {session_id} joined and broadcast")
+        # Broadcast order.created for Counter Dashboard
+        if "order_id" in result:
+            await broadcast_event(
+                restaurant_id=session.restaurant_id,
+                event_type="order.created",
+                data={
+                    "order_id": result["order_id"],
+                    "table_no": result["table_pairing"],
+                    "customer_name": f"{session.customer_name} & {data.customer_name}",
+                    "total_amount": result["total_price"],
+                    "status": "PENDING",
+                    "order_type": "paired",
+                    "created_at": datetime.now().isoformat()
+                }
+            )
+        
+        logger.info(f"Session {session_id} joined, order created, and broadcast")
         return result
         
     except ValueError as e:
