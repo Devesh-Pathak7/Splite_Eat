@@ -296,7 +296,13 @@ const MenuPageProduction = () => {
               </h1>
               <p className="text-sm text-gray-600">Table {table_no}</p>
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => navigate(`/my-orders/${restaurant_id}/${table_no}`)}
+                className="hidden sm:block bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition"
+              >
+                My Orders
+              </button>
               <button 
                 onClick={() => setShowCart(!showCart)} 
                 className="relative p-2 hover:bg-orange-100 rounded-full transition"
