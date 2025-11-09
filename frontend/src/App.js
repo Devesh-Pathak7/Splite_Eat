@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { Toaster } from './components/ui/sonner';
 import LoginPage from './pages/LoginPage';
 import MenuPage from './pages/MenuPageProduction';
+import CustomerDashboard from './pages/CustomerDashboard';
 import CounterDashboard from './pages/CounterDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AnalyticsPage from './pages/AnalyticsPage';
