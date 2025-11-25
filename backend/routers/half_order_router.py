@@ -8,7 +8,8 @@ import logging
 
 from database import get_db
 from models import User, HalfOrderSession
-from auth import get_current_user
+# NOTE: get_current_user is ONLY used for staff-level actions like cancel or internal API logic
+from auth import get_current_user 
 from services.half_order_service import HalfOrderService
 from services.websocket_service import broadcast_event
 from schemas import HalfOrderCreate, HalfOrderJoin, HalfOrderResponse
@@ -24,7 +25,7 @@ async def create_half_session(
     table_no: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # REMOVED: current_user: User = Depends(get_current_user) -- This is now public/unauthenticated
 ):
     """Create a new half-order session with UTC timezone-aware expiry"""
     try:
@@ -35,7 +36,7 @@ async def create_half_session(
             customer_name=data.customer_name,
             customer_mobile=data.customer_mobile,
             menu_item_id=data.menu_item_id,
-            current_user=current_user,
+            # current_user is now omitted from the service call
             ip_address=request.client.host if request.client else None
         )
         
@@ -73,7 +74,7 @@ async def join_half_session(
     data: HalfOrderJoin,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # REMOVED: current_user: User = Depends(get_current_user) -- This is now public/unauthenticated
 ):
     """Join a half-order session with row-level locking to prevent race conditions"""
     try:
@@ -83,7 +84,7 @@ async def join_half_session(
             joiner_table_no=data.table_no,
             joiner_name=data.customer_name,
             joiner_mobile=data.customer_mobile,
-            current_user=current_user,
+            # current_user is now omitted from the service call
             ip_address=request.client.host if request.client else None
         )
         
@@ -156,7 +157,7 @@ async def cancel_half_session(
     reason: str = None,
     request: Request = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user) # KEEP: This endpoint should remain protected for staff/admin
 ):
     """Cancel half-order session with permission-based rules"""
     try:

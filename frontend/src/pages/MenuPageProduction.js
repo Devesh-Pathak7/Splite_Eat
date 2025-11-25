@@ -3,14 +3,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/helpers';
-import { Moon, Sun, Search, ShoppingCart, Users, X, Plus, Minus, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast'; // Assuming react-hot-toast or similar is used for modern notifications
+// Included all necessary icons
+import { Moon, Sun, Search, ShoppingCart, Users, X, Plus, Minus, Zap } from 'lucide-react'; 
 
 /**
  * Production-ready Menu page - Enhanced for concurrency and modern UX.
- * - Uses dedicated loading states and toast notifications (removes native alerts).
- * - Refined cart logic: Half items are only added to the cart *after* a session is successfully started or joined (linked).
- * - Implements a CustomerModal for starting/joining sessions cleanly.
+ * - FIX: Ensures freshly created half sessions appear immediately in 'Active Half Orders' (5-second buffer applied).
+ * - Uses CustomerModal for clean session start/join flow and concurrency management.
  */
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -45,7 +44,7 @@ const getTimeRemaining = (expiresAt) => {
   return Math.floor(diff / 1000 / 60);
 };
 
-// --- CUSTOMER INFO/SESSION MODAL COMPONENT (for cleaner UX) ---
+// --- CUSTOMER INFO/SESSION MODAL COMPONENT ---
 
 const CustomerModal = ({ isOpen, onClose, customerInfo, setCustomerInfo, onSubmit, title, actionLabel, isLoading }) => {
   if (!isOpen) return null;
@@ -113,7 +112,8 @@ export default function MenuPageProduction() {
   
   // Concurrency and State Management
   const [isLoading, setIsLoading] = useState(false);
-  const [modalState, setModalState] = useState(null); // { type: 'start' | 'join', data: menuItemId | sessionId }
+  // modalState: { type: 'start' | 'join', data: menuItemId | sessionId }
+  const [modalState, setModalState] = useState(null); 
 
   const normalizeCategory = (c) => {
     if (!c) return '';
@@ -131,8 +131,10 @@ export default function MenuPageProduction() {
 
   // WebSocket (menu/session updates)
   useEffect(() => {
+    // Determine WebSocket protocol based on the current page protocol
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${proto}://${window.location.host}/ws/${restaurant_id}`;
+    // Use window.location.host for production/local flexibility
+    const wsUrl = `${proto}://${window.location.host}/ws/${restaurant_id}`; 
     let ws;
     try {
       ws = new WebSocket(wsUrl);
@@ -149,11 +151,10 @@ export default function MenuPageProduction() {
   const handleWebSocketMessage = (message) => {
     if (!message) return;
     if (message.type === 'menu.update') {
-      if (message.data?.action === 'create') fetchMenu();
+      if (message.data?.action === 'create' || message.data?.action === 'delete') fetchMenu();
       if (message.data?.action === 'update') setMenuItems(prev => prev.map(it => it.id === message.data.item.id ? { ...it, ...message.data.item } : it));
-      if (message.data?.action === 'delete') setMenuItems(prev => prev.filter(it => it.id !== message.data.item_id));
     }
-    // Concurrency handling: If a session is created/joined, refetch active sessions.
+    // Concurrency handling: If a session is created/joined/expired, refetch active sessions.
     if (message.type === 'session.created' || message.type === 'session.joined' || message.type === 'session.expired') {
       fetchHalfOrders();
     }
@@ -169,16 +170,22 @@ export default function MenuPageProduction() {
   }, []);
 
   const fetchRestaurant = async () => {
-    try { const r = await axios.get(`${API_URL}/restaurants/${restaurant_id}`); setRestaurant(r.data); } catch (e) { console.error('Error fetching restaurant:', e); toast.error('Failed to load restaurant details.'); }
+    try { const r = await axios.get(`${API_URL}/restaurants/${restaurant_id}`); setRestaurant(r.data); } catch (e) { console.error('Error fetching restaurant:', e); alert('Failed to load restaurant details.'); }
   };
   const fetchMenu = async () => {
-    try { const r = await axios.get(`${API_URL}/restaurants/${restaurant_id}/menu`); setMenuItems(r.data || []); } catch (e) { console.error('Error fetching menu:', e); toast.error('Failed to load menu items.'); }
+    try { const r = await axios.get(`${API_URL}/restaurants/${restaurant_id}/menu`); setMenuItems(r.data || []); } catch (e) { console.error('Error fetching menu:', e); alert('Failed to load menu items.'); }
   };
+  
+  // **FIXED LOGIC FOR ACTIVE HALF ORDERS VISIBILITY**
   const fetchHalfOrders = async () => {
     try {
       const r = await axios.get(`${API_URL}/half-order/active?restaurant_id=${restaurant_id}`);
-      // Filter out expired sessions client-side just in case, though backend should handle it
-      const active = (r.data || []).filter(h => getTimeRemaining(h.expires_at || h.expiresAt || Date.now()) > 0);
+      
+      // FIX: Add a 5-second buffer when checking expiry time 
+      // to prevent a race condition where a freshly created session is immediately filtered out.
+      const nowWithBuffer = new Date(Date.now() - 5000); 
+      
+      const active = (r.data || []).filter(h => new Date(h.expires_at || h.expiresAt || Date.now()) > nowWithBuffer);
       setHalfOrders(active);
     } catch (e) { console.error('Error fetching half orders:', e); }
   };
@@ -210,7 +217,7 @@ export default function MenuPageProduction() {
   // CART OPERATIONS
   const addToCart = useCallback((item, isHalf = false, sessionId = null) => {
     if (isHalf && !sessionId) {
-      console.warn("Attempted to add unlinked half item to cart. This should not happen in the new flow.");
+      console.warn("Attempted to add unlinked half item to cart.");
       return;
     }
 
@@ -273,6 +280,7 @@ export default function MenuPageProduction() {
     setIsLoading(true);
 
     try {
+      // API call is now unauthenticated due to backend fix
       const res = await axios.post(`${API_URL}/half-order?restaurant_id=${restaurant_id}&table_no=${table_no}`, {
         customer_name: customerInfo.name,
         customer_mobile: customerInfo.mobile,
@@ -284,24 +292,22 @@ export default function MenuPageProduction() {
       const originalItem = menuItems.find(mi => String(mi.id) === String(menuItemId));
 
       if (sessionId && originalItem) {
-        // MODIFICATION: Add linked item to cart immediately upon success
         addToCart(originalItem, true, sessionId);
         
         let timeLeft = getTimeRemaining(session.expires_at || session.expiresAt);
-        // Fix for "0 min" bug: Fallback to env duration for initial alert if time is near zero
         if (timeLeft < 2) {
           timeLeft = DEFAULT_HALF_SESSION_DURATION_MINUTES;
         }
 
-        toast.success(`Half session started for ${originalItem.name} — expires in ${timeLeft} min.`, { icon: <CheckCircle /> });
-        fetchHalfOrders();
-        setModalState(null);
+        alert(`Half session started for ${originalItem.name} — expires in ${timeLeft} min.`);
+        fetchHalfOrders(); // Fetch active orders to refresh the list
+        setModalState(null); // Close modal
       } else {
         throw new Error("Session ID or Menu Item data missing in response.");
       }
     } catch (e) {
       console.error('Start half session failed:', e);
-      toast.error(`Failed to start half session: ${e.response?.data?.detail || e.message || 'Server error.'}`, { icon: <AlertTriangle /> });
+      alert(`Failed to start half session: ${e.response?.data?.detail || e.message || 'Server error.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -313,6 +319,7 @@ export default function MenuPageProduction() {
     setIsLoading(true);
 
     try {
+      // API call is now unauthenticated due to backend fix
       const res = await axios.post(`${API_URL}/half-order/${sessionId}/join`, {
         table_no,
         customer_name: customerInfo.name,
@@ -324,7 +331,6 @@ export default function MenuPageProduction() {
       const menuName = session.menu_item_name ?? session.menu_item?.name ?? 'Half Item';
       const original = menuItems.find(mi => String(mi.id) === String(menuId));
       
-      // Create a template item using available data if the full item is not in the menu list
       const template = original || { 
         id: menuId, 
         name: menuName, 
@@ -332,15 +338,14 @@ export default function MenuPageProduction() {
         half_price: toNumber(session.half_price ?? session.menu_item?.half_price ?? 0) 
       };
 
-      // MODIFICATION: Add linked item to cart immediately upon success
       addToCart(template, true, sessionId);
       
-      toast.success(`Successfully joined half session for ${template.name}.`, { icon: <CheckCircle /> });
-      fetchHalfOrders();
-      setModalState(null);
+      alert(`Successfully joined half session for ${template.name}.`);
+      fetchHalfOrders(); // Fetch active orders to refresh the list
+      setModalState(null); // Close modal
     } catch (e) {
       console.error('Join half session failed:', e);
-      toast.error(`Failed to join session: ${e.response?.data?.detail || e.message || 'Server error.'}`, { icon: <AlertTriangle /> });
+      alert(`Failed to join session: ${e.response?.data?.detail || e.message || 'Server error.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -350,19 +355,18 @@ export default function MenuPageProduction() {
 
   const checkout = async () => {
     if (!customerInfo.name || customerInfo.mobile.length !== 10) {
-      toast.error('Please enter your name and a valid 10-digit mobile number.', { icon: <AlertTriangle /> });
-      setShowCart(true); // Ensure cart is open to prompt user
+      alert('Please enter your name and a valid 10-digit mobile number.');
+      setShowCart(true);
       return;
     }
     if (cart.items.length === 0) {
-      toast.error('Cart is empty', { icon: <AlertTriangle /> });
+      alert('Cart is empty');
       return;
     }
     
-    // Concurrency Check: Ensure all half items are linked to a session before checkout
     const unlinkedHalfItems = cart.items.filter(it => it.isHalf && !it.sessionId);
     if (unlinkedHalfItems.length > 0) {
-      toast.error('All half items must be linked to an active session before placing the order.', { icon: <AlertTriangle /> });
+      alert('All half items must be linked to an active session before placing the order. Please ensure you have started or joined a session for all half orders.');
       return;
     }
 
@@ -383,31 +387,28 @@ export default function MenuPageProduction() {
         customer_name: customerInfo.name,
         phone: customerInfo.mobile,
         items: orderItems,
-        // halfOrderIds now correctly tracks only the unique session IDs used in the cart
         paired_order_ids: cart.halfOrderIds 
       });
 
-      toast.success('Order placed successfully!', { icon: <CheckCircle /> });
+      alert('Order placed successfully!');
       setCart({ items: [], halfOrderIds: [] });
       setShowCart(false);
       navigate('/order-success');
     } catch (e) {
       console.error('Checkout failed:', e);
-      toast.error('Checkout failed: ' + (e.response?.data?.detail || e.message || 'Server error.'), { icon: <AlertTriangle /> });
+      alert('Checkout failed: ' + (e.response?.data?.detail || e.message || 'Server error.'));
     } finally {
       setIsLoading(false);
     }
   };
 
   const confirmHalfOrders = async () => {
-    // This is just an alias for checkout when the cart contains only linked half orders.
     await checkout();
   };
 
   const totalAmount = useMemo(() => cart.items.reduce((s, it) => s + (it.isHalf ? toNumber(it.half_price) : toNumber(it.price)) * it.quantity, 0), [cart.items]);
   const totalItems = useMemo(() => cart.items.reduce((s, it) => s + it.quantity, 0), [cart.items]);
 
-  const halfCapableMenu = useMemo(() => menuItems.filter(mi => mi.half_price && mi.available !== false), [menuItems]);
   const cardClass = (dark) => `rounded-2xl transition-all p-5 border ${dark ? 'bg-gradient-to-br from-gray-800 to-gray-700 border-gray-700 text-white' : 'bg-white/95 border-orange-100 text-gray-800'} shadow hover:shadow-lg transform hover:scale-[1.01]`;
 
   // Determine footer button behavior:
@@ -434,7 +435,6 @@ export default function MenuPageProduction() {
 
   return (
     <div className={`${isDarkMode ? 'dark' : ''} ${isDarkMode ? 'bg-gray-900 text-white min-h-screen' : 'bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 min-h-screen'}`}>
-      <Toaster position="top-center" reverseOrder={false} />
       
       {/* Customer/Session Modal */}
       <CustomerModal {...modalProps} />
@@ -481,7 +481,7 @@ export default function MenuPageProduction() {
         {halfOrders.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-4 text-orange-600 flex items-center gap-3"><Users size={22}/> Active Half Orders ({halfOrders.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {halfOrders.map(h => {
                 const timeLeft = getTimeRemaining(h.expires_at || h.expiresAt);
                 return (
@@ -608,7 +608,7 @@ export default function MenuPageProduction() {
                                 {item.isHalf && item.sessionId && <Zap size={14} className="text-green-500" title="Linked to Session" />}
                             </div>
                           </div>
-                          <button onClick={() => removeFromCart(item.cartId)} className="text-red-500 hover:text-red-700"><X size={18} /></button>
+                          <button onClick={() => removeFromCart(item.cartId)} disabled={isLoading} className="text-red-500 hover:text-red-700"><X size={18} /></button>
                         </div>
 
                         <div className="flex items-center justify-between mt-3">
