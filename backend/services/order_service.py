@@ -12,6 +12,7 @@ from models import (
     OrderStatus, PairedOrderStatus, HalfOrderStatus, utc_now, TableOrderSession
 )
 from services.audit_service import log_audit
+from services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
 
