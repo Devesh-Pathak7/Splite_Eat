@@ -178,6 +178,7 @@ class OrderResponse(BaseModel):
     items: str
     total_amount: float
     status: OrderStatus
+    session_id: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
