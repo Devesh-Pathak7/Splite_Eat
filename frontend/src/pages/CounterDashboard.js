@@ -346,7 +346,7 @@ const CounterDashboardContent = () => {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="text-2xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                        {formatCurrency(order.total_amount)}
+                        {formatCurrency(mainOrder.total_amount)}
                       </div>
                     <div className="flex flex-wrap gap-2">
                       {order.status === 'PENDING' && (
