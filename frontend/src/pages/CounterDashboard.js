@@ -250,6 +250,22 @@ const CounterDashboardContent = () => {
     return `${window.location.origin}/menu/${user.restaurant_id}/${table.table_no}`;
   };
 
+  const groupedOrders = React.useMemo(() => {
+    const groups = {};
+    orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').forEach(order => {
+      const key = order.session_id || `table_${order.table_no}`;
+      if (!groups[key]) {
+        groups[key] = {
+          session_id: order.session_id,
+          table_no: order.table_no,
+          orders: []
+        };
+      }
+      groups[key].orders.push(order);
+    });
+    return Object.values(groups);
+  }, [orders]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 transition-colors duration-500">
       <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl shadow-lg border-b border-white/20 dark:border-gray-700/20">
