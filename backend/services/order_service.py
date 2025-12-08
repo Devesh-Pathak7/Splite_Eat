@@ -68,7 +68,7 @@ class OrderService:
                 paired_orders.append(paired_order)
         
         # Get or create table session
-        from routers.table_sessions_router import get_or_create_session, update_session_totals
+        from services.table_session_service import get_or_create_session, update_session_totals
         session_id = await get_or_create_session(db, restaurant_id, table_no)
         
         # Create the order - serialize items properly
