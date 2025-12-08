@@ -190,6 +190,7 @@ class PairedOrder(Base):
     menu_item_id = Column(Integer, nullable=False)
     menu_item_name = Column(String(120), nullable=False)
     total_price = Column(Float, nullable=False)
+    join_fee = Column(Float, default=0.0, nullable=False)
     status = Column(Enum(PairedOrderStatus), default=PairedOrderStatus.PENDING, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
