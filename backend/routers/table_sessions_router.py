@@ -13,6 +13,7 @@ from models import TableOrderSession, Order, Restaurant, User, OrderStatus
 from auth import get_current_user, require_role
 from schemas import TableOrderSessionResponse, ClearTableRequest
 from services.websocket_service import broadcast_event
+from services.table_session_service import get_or_create_session, update_session_totals
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/table-sessions", tags=["Table Sessions"])
