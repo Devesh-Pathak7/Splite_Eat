@@ -55,6 +55,7 @@ async def create_order(
                 "customer_name": data.customer_name,
                 "total_amount": result["total_amount"],
                 "status": result["status"],
+                "session_id": result.get("session_id"),
                 "paired_orders_count": len(result.get("paired_orders_completed", [])),
                 "created_at": result["created_at"]
             }
