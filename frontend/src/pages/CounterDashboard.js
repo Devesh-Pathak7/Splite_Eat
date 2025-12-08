@@ -369,7 +369,7 @@ const CounterDashboardContent = () => {
                           Complete
                         </Button>
                       )}
-                      <Button size="sm" variant="destructive" onClick={() => updateOrderStatus(order.id, 'CANCELLED')} data-testid={`order-${order.id}-cancel-btn`}>
+                      <Button size="sm" variant="destructive" onClick={() => updateOrderStatus(mainOrder.id, 'CANCELLED')} data-testid={`order-${mainOrder.id}-cancel-btn`}>
                         Cancel
                       </Button>
                     </div>
