@@ -227,7 +227,7 @@ class HalfOrderService:
         
         # Auto-create Counter Order with session
         import json
-        from routers.table_sessions_router import get_or_create_session, update_session_totals
+        from services.table_session_service import get_or_create_session, update_session_totals
         
         # Get or create session for the original table (creator's table)
         order_session_id = await get_or_create_session(db, session.restaurant_id, session.table_no)
