@@ -99,6 +99,40 @@ const CounterDashboardContent = () => {
     }
   };
 
+  const clearTable = async (tableNo) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/counter/tables/${tableNo}/clear?restaurant_id=${user.restaurant_id}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Table cleared');
+      fetchOrders();
+    } catch (error) {
+      toast.error('Failed to clear table');
+    }
+  };
+
+  const bulkUpdateStatus = async (orderIds, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      await Promise.all(
+        orderIds.map(id =>
+          axios.patch(
+            `${API_URL}/orders/${id}`,
+            { status },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        )
+      );
+      toast.success(`Updated ${orderIds.length} orders`);
+      fetchOrders();
+    } catch (error) {
+      toast.error('Bulk update failed');
+    }
+  };
+
   const fetchMenu = async () => {
     try {
       const response = await axios.get(`${API_URL}/restaurants/${user.restaurant_id}/menu`);
