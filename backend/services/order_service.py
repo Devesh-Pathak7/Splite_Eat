@@ -79,6 +79,11 @@ class OrderService:
             for item in items
         ])
         
+        # Get or create table session
+        session = await SessionService.get_or_create_active_session(
+            db, restaurant_id, table_no
+        )
+        
         order = Order(
             restaurant_id=restaurant_id,
             table_no=table_no,
@@ -87,6 +92,7 @@ class OrderService:
             items=items_json,
             total_amount=total_amount,
             status=OrderStatus.PENDING,
+            session_id=session.id,
             created_at=utc_now()
         )
         
