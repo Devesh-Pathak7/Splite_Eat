@@ -388,6 +388,11 @@ const CounterDashboardContent = () => {
                         Cancel
                       </Button>
                     </div>
+                    {group.session_id && (
+                      <Button size="sm" variant="outline" className="w-full mt-2" onClick={() => clearTable(mainOrder.table_no)}>
+                        Clear Table
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
                 );
