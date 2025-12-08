@@ -537,7 +537,8 @@ async def update_order_status(
         data={
             "order": {
                 "id": order.id,
-                "status": order.status.value
+                "status": order.status.value,
+                "session_id": order.session_id
             }
         }
     )
