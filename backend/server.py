@@ -499,7 +499,8 @@ async def create_order(
                 "table_no": order.table_no,
                 "customer_name": order.customer_name,
                 "total_amount": order.total_amount,
-                "status": order.status.value
+                "status": order.status.value,
+                "session_id": order.session_id
             }
         }
     )
