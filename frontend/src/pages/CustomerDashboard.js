@@ -365,6 +365,46 @@ const CustomerDashboard = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-5 space-y-8">
+        {/* Table session info */}
+        {tableSession && tableSession.is_active && (
+          <section
+            className={`rounded-lg p-4 text-sm border ${
+              isDarkMode
+                ? "bg-blue-950/30 border-blue-700/50"
+                : "bg-blue-50 border-blue-200"
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <p
+                  className={`font-semibold ${
+                    isDarkMode ? "text-blue-200" : "text-blue-800"
+                  }`}
+                >
+                  🍽️ Active Table Session
+                </p>
+                <p
+                  className={
+                    isDarkMode ? "text-xs text-blue-300" : "text-xs text-blue-600"
+                  }
+                >
+                  {tableSession.total_orders_count} order(s) • Total: ₹
+                  {tableSession.total_amount.toFixed(2)}
+                </p>
+              </div>
+              <div
+                className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  isDarkMode
+                    ? "bg-green-900/50 text-green-200"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                Active
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Half-order sessions info */}
         {halfSessions.length > 0 && (
           <section className="space-y-3">
