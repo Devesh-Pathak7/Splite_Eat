@@ -349,8 +349,8 @@ const CounterDashboardContent = () => {
                         {formatCurrency(mainOrder.total_amount)}
                       </div>
                     <div className="flex flex-wrap gap-2">
-                      {order.status === 'PENDING' && (
-                        <Button size="sm" onClick={() => updateOrderStatus(order.id, 'PREPARING')} className="bg-blue-500 hover:bg-blue-600" data-testid={`order-${order.id}-preparing-btn`}>
+                      {mainOrder.status === 'PENDING' && (
+                        <Button size="sm" onClick={() => updateOrderStatus(mainOrder.id, 'PREPARING')} className="bg-blue-500 hover:bg-blue-600" data-testid={`order-${mainOrder.id}-preparing-btn`}>
                           Start Preparing
                         </Button>
                       )}
