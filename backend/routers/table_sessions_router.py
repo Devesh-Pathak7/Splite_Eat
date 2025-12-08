@@ -273,7 +273,3 @@ async def get_half_order_stats(
     except Exception as e:
         logger.error(f"Error fetching half-order stats: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch statistics")
-
-
-# Import session helper functions from service
-from services.table_session_service import get_or_create_session, update_session_totals
