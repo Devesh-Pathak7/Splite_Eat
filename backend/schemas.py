@@ -108,24 +108,28 @@ class MenuItemResponse(BaseModel):
 # Half Order Session Schemas
 class HalfOrderCreate(BaseModel):
     customer_name: str
-    customer_mobile: str
+    customer_mobile: Optional[str] = None
     menu_item_id: int
-    
+
     @validator('customer_mobile')
     def validate_mobile(cls, v):
+        if v in (None, "", " "):
+            return None
         if not re.match(r'^\d{10}$', v):
-            raise ValueError('Mobile number must be 10 digits')
+            raise ValueError("Mobile number must be 10 digits")
         return v
 
 class HalfOrderJoin(BaseModel):
     customer_name: str
-    customer_mobile: str
+    customer_mobile: Optional[str] = None
     table_no: str
-    
+
     @validator('customer_mobile')
     def validate_mobile(cls, v):
+        if v in (None, "", " "):
+            return None
         if not re.match(r'^\d{10}$', v):
-            raise ValueError('Mobile number must be 10 digits')
+            raise ValueError("Mobile number must be 10 digits")
         return v
 
 class HalfOrderResponse(BaseModel):
@@ -133,7 +137,7 @@ class HalfOrderResponse(BaseModel):
     restaurant_id: int
     table_no: str
     customer_name: str
-    customer_mobile: str
+    customer_mobile: Optional[str] = None
     menu_item_id: int
     menu_item_name: str
     status: HalfOrderStatus
@@ -157,7 +161,7 @@ class OrderCreate(BaseModel):
     restaurant_id: int
     table_no: str
     customer_name: str
-    phone: str
+    phone: Optional[str] = None
     items: List[OrderItem]
     paired_order_ids: Optional[List[int]] = None
     idempotency_key: Optional[str] = None

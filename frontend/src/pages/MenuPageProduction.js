@@ -49,7 +49,8 @@ const getTimeRemaining = (expiresAt) => {
 const CustomerModal = ({ isOpen, onClose, customerInfo, setCustomerInfo, onSubmit, title, actionLabel, isLoading }) => {
   if (!isOpen) return null;
 
-  const isFormValid = customerInfo.name.trim() && customerInfo.mobile.length === 10;
+  // const isFormValid = customerInfo.name.trim() && customerInfo.mobile.length === 10;
+  const isFormValid = customerInfo.name.trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 transition-opacity">
@@ -67,14 +68,14 @@ const CustomerModal = ({ isOpen, onClose, customerInfo, setCustomerInfo, onSubmi
             className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
             disabled={isLoading}
           />
-          <input
+          {/* <input
             value={customerInfo.mobile}
             onChange={(e) => setCustomerInfo(prev => ({ ...prev, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
             placeholder="Mobile (10 digits) *"
             className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
             disabled={isLoading}
             maxLength={10}
-          />
+          /> */}
         </div>
 
         <button
@@ -283,7 +284,7 @@ export default function MenuPageProduction() {
       // API call is now unauthenticated due to backend fix
       const res = await axios.post(`${API_URL}/half-order?restaurant_id=${restaurant_id}&table_no=${table_no}`, {
         customer_name: customerInfo.name,
-        customer_mobile: customerInfo.mobile,
+        customer_mobile: "",
         menu_item_id: menuItemId
       });
       
@@ -292,7 +293,6 @@ export default function MenuPageProduction() {
       const originalItem = menuItems.find(mi => String(mi.id) === String(menuItemId));
 
       if (sessionId && originalItem) {
-        addToCart(originalItem, true, sessionId);
         
         let timeLeft = getTimeRemaining(session.expires_at || session.expiresAt);
         if (timeLeft < 2) {
@@ -323,7 +323,7 @@ export default function MenuPageProduction() {
       const res = await axios.post(`${API_URL}/half-order/${sessionId}/join`, {
         table_no,
         customer_name: customerInfo.name,
-        customer_mobile: customerInfo.mobile
+        customer_mobile: ""
       });
 
       const session = halfOrders.find(h => String(h.id) === String(sessionId)) || res.data || {};
@@ -338,7 +338,6 @@ export default function MenuPageProduction() {
         half_price: toNumber(session.half_price ?? session.menu_item?.half_price ?? 0) 
       };
 
-      addToCart(template, true, sessionId);
       
       alert(`Successfully joined half session for ${template.name}.`);
       fetchHalfOrders(); // Fetch active orders to refresh the list
@@ -354,7 +353,7 @@ export default function MenuPageProduction() {
   // --- CHECKOUT LOGIC ---
 
   const checkout = async () => {
-    if (!customerInfo.name || customerInfo.mobile.length !== 10) {
+    if (!customerInfo.name) {
       alert('Please enter your name and a valid 10-digit mobile number.');
       setShowCart(true);
       return;
@@ -385,7 +384,7 @@ export default function MenuPageProduction() {
         restaurant_id: Number(restaurant_id),
         table_no,
         customer_name: customerInfo.name,
-        phone: customerInfo.mobile,
+        phone: "",
         items: orderItems,
         paired_order_ids: cart.halfOrderIds 
       });
@@ -414,7 +413,9 @@ export default function MenuPageProduction() {
   // Determine footer button behavior:
   const cartHasOnlyHalfItems = cart.items.length > 0 && cart.items.every(it => it.isHalf);
   const allHalfItemsLinked = cartHasOnlyHalfItems && cart.items.every(it => !!it.sessionId);
-  const isCheckoutDisabled = isLoading || !customerInfo.name || customerInfo.mobile.length !== 10;
+  // const isCheckoutDisabled = isLoading || !customerInfo.name || customerInfo.mobile.length !== 10;
+  const isCheckoutDisabled = isLoading || !customerInfo.name;
+
 
   // Modal Content Setup
   let modalProps = { isOpen: false, onClose: () => setModalState(null), customerInfo, setCustomerInfo, isLoading };
@@ -577,7 +578,7 @@ export default function MenuPageProduction() {
 
               <div className="mt-4 space-y-3">
                 <input value={customerInfo.name} onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))} placeholder="Your Name *" className={`${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white border-gray-300'} w-full px-4 py-3 rounded-xl border focus:outline-none text-sm`} />
-                <input value={customerInfo.mobile} onChange={(e) => setCustomerInfo(prev => ({ ...prev, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))} placeholder="Mobile (10 digits) *" className={`${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white border-gray-300'} w-full px-4 py-3 rounded-xl border focus:outline-none text-sm`} maxLength={10} />
+                {/* <input value={customerInfo.mobile} onChange={(e) => setCustomerInfo(prev => ({ ...prev, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))} placeholder="Mobile (10 digits) *" className={`${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white border-gray-300'} w-full px-4 py-3 rounded-xl border focus:outline-none text-sm`} maxLength={10} /> */}
               </div>
             </div>
 
