@@ -226,6 +226,7 @@ class HalfOrderService:
             menu_item_id=menu_item.id,
             menu_item_name=menu_item.name,
             total_price=total_price,
+            join_fee=join_fee,
             status=PairedOrderStatus.PENDING,
             joiner_table_no=joiner_table_no,
             joiner_customer_name=joiner_name,
