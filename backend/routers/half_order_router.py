@@ -129,6 +129,7 @@ async def join_half_session(
                 event_type="order.created",
                 data={
                     "order_id": result["order_id"],
+                    "session_id": result.get("session_id"),
                     "table_no": result["table_pairing"],
                     "customer_name": f"{session.customer_name} & {data.customer_name}",
                     "total_amount": result["total_price"],
