@@ -197,8 +197,16 @@ class HalfOrderService:
         if not menu_item:
             raise ValueError("Menu item not found")
         
-        # Full price = half × 2
-        full_price = (menu_item.half_price * 2) if menu_item.half_price else menu_item.price
+        # Fetch restaurant to get join fee
+        from models import Restaurant
+        rest_result = await db.execute(
+            select(Restaurant).where(Restaurant.id == session.restaurant_id)
+        )
+        restaurant = rest_result.scalar_one_or_none()
+        join_fee = restaurant.half_order_join_fee if restaurant else 20.0
+        
+        # Full price = half × 2 + join_fee
+        full_price = ((menu_item.half_price * 2) if menu_item.half_price else menu_item.price) + join_fee
         
         # Create PairedOrder (Option A → store FULL PRICE)
         paired_order = PairedOrder(
