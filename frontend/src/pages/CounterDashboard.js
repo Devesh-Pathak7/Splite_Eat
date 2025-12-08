@@ -966,6 +966,18 @@ const CounterDashboardContent = () => {
                   {formatCurrency(groupTotal)}
                 </span>
               </div>
+
+              {/* Clear Table Button */}
+              <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-800">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs"
+                  onClick={() => clearTable(group.key)}
+                >
+                  Clear Table {group.key}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         );
