@@ -28,6 +28,7 @@ from routes_enhanced import router as enhanced_router, validate_menu_item_type
 from routers.half_order_router import router as half_order_router
 from routers.orders_router import router as orders_router
 from routers.counter_router import router as counter_router
+from routers.table_sessions_router import router as table_sessions_router
 
 load_dotenv()
 
