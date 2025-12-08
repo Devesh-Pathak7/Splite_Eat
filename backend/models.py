@@ -88,6 +88,7 @@ class Restaurant(Base):
     location = Column(String(300))
     contact = Column(String(50))
     type = Column(Enum(RestaurantType), default=RestaurantType.MIXED, nullable=False)
+    half_order_join_fee = Column(Float, default=20.0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     
     users = relationship("User", back_populates="restaurant", cascade="all, delete-orphan")
@@ -95,6 +96,7 @@ class Restaurant(Base):
     menu_items = relationship("MenuItem", back_populates="restaurant", cascade="all, delete-orphan")
     half_order_sessions = relationship("HalfOrderSession", back_populates="restaurant", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="restaurant", cascade="all, delete-orphan")
+    table_order_sessions = relationship("TableOrderSession", back_populates="restaurant", cascade="all, delete-orphan")
 
 class Table(Base):
     __tablename__ = "tables"
