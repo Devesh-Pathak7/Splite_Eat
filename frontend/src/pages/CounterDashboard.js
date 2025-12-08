@@ -364,8 +364,8 @@ const CounterDashboardContent = () => {
                           Mark Served
                         </Button>
                       )}
-                      {order.status === 'SERVED' && (
-                        <Button size="sm" onClick={() => updateOrderStatus(order.id, 'COMPLETED')} className="bg-gray-500 hover:bg-gray-600" data-testid={`order-${order.id}-complete-btn`}>
+                      {mainOrder.status === 'SERVED' && (
+                        <Button size="sm" onClick={() => updateOrderStatus(mainOrder.id, 'COMPLETED')} className="bg-gray-500 hover:bg-gray-600" data-testid={`order-${mainOrder.id}-complete-btn`}>
                           Complete
                         </Button>
                       )}
