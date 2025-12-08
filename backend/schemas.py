@@ -222,3 +222,21 @@ class ErrorLogResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     # Deprecated Config class
+
+# Table Order Session Schemas
+class TableOrderSessionResponse(BaseModel):
+    id: int
+    restaurant_id: int
+    table_no: str
+    session_id: str
+    is_active: bool
+    started_at: datetime
+    ended_at: Optional[datetime]
+    total_orders_count: int
+    total_amount: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ClearTableRequest(BaseModel):
+    table_no: str
+    restaurant_id: int
