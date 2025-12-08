@@ -23,6 +23,7 @@ CUSTOMER_CANCEL_WINDOW_MINUTES = int(os.getenv('CUSTOMER_CANCEL_WINDOW_MINUTES',
 
 class HalfOrderService:
     
+    # ---------------------- CREATE HALF SESSION ----------------------
     @staticmethod
     async def create_half_session(
         db: AsyncSession,
@@ -34,7 +35,6 @@ class HalfOrderService:
         current_user: Optional[User] = None,
         ip_address: Optional[str] = None
     ) -> HalfOrderSession:
-        """Create a new half-order session with UTC timezone-aware datetimes"""
         
         # Get menu item details
         result = await db.execute(
@@ -48,7 +48,7 @@ class HalfOrderService:
         if not menu_item.half_price:
             raise ValueError(f"Menu item {menu_item.name} does not support half orders")
         
-        # Check for existing ACTIVE sessions for same menu item in same restaurant
+        # Check existing active sessions
         now_ist = ist_now()
         existing_result = await db.execute(
             select(HalfOrderSession)
@@ -62,7 +62,6 @@ class HalfOrderService:
         )
         existing_sessions = existing_result.scalars().all()
         
-        # Filter out expired sessions
         valid_existing = []
         for sess in existing_sessions:
             expires_at = sess.expires_at
@@ -75,22 +74,20 @@ class HalfOrderService:
                 valid_existing.append(sess)
         
         if valid_existing:
-            # Found active session(s) for same item - suggest joining instead
             session_info = ", ".join([
                 f"Session #{s.id} by Table {s.table_no} ({s.customer_name})"
-                for s in valid_existing[:3]  # Show max 3
+                for s in valid_existing[:3]
             ])
             raise ValueError(
                 f"Active half-order already exists for {menu_item.name}. "
                 f"Please join existing session(s): {session_info}"
             )
         
-        # Set expiry time based on TTL in IST
-        ttl_minutes = int(os.getenv('HALF_ORDER_TTL_MINUTES', '30'))
+        ttl_minutes = HALF_ORDER_TTL_MINUTES
         created_at_ist = ist_now()
         expires_at = created_at_ist + timedelta(minutes=ttl_minutes)
         
-        # Create session
+        # Create a new half-order session
         session = HalfOrderSession(
             restaurant_id=restaurant_id,
             table_no=table_no,
@@ -106,7 +103,7 @@ class HalfOrderService:
         db.add(session)
         await db.flush()
         
-        # Log audit
+        # Audit log
         await log_audit(
             db=db,
             user=current_user,
@@ -122,14 +119,9 @@ class HalfOrderService:
             ip_address=ip_address
         )
         
-        logger.info(
-            f"Half-session {session.id} created - "
-            f"Created: {created_at_ist.isoformat()}, Expires: {expires_at.isoformat()}, "
-            f"TTL: {ttl_minutes} minutes"
-        )
-        
         return session
     
+    # --------------------------- JOIN HALF SESSION ---------------------------
     @staticmethod
     async def join_half_session(
         db: AsyncSession,
@@ -140,9 +132,8 @@ class HalfOrderService:
         current_user: Optional[User] = None,
         ip_address: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Join a half-order session with proper locking to prevent race conditions"""
         
-        # Use SELECT FOR UPDATE to lock the row
+        # SELECT FOR UPDATE → lock row
         result = await db.execute(
             select(HalfOrderSession)
             .where(HalfOrderSession.id == session_id)
@@ -153,11 +144,9 @@ class HalfOrderService:
         if not session:
             raise ValueError("Half-order session not found")
         
-        # Validation checks
         if session.status not in [HalfOrderStatus.ACTIVE, HalfOrderStatus.JOINED]:
             raise ValueError(f"Session is not available for joining (status: {session.status})")
         
-        # Check if expired (IST timezone)
         now_ist = ist_now()
         expires_at = session.expires_at
         if expires_at.tzinfo is None:
@@ -170,11 +159,9 @@ class HalfOrderService:
             await db.commit()
             raise ValueError("Session has expired")
         
-        # Prevent same-table join
         if session.table_no == joiner_table_no:
             raise ValueError("Cannot join your own table's half-order")
         
-        # Check if this table already joined
         existing_paired = await db.execute(
             select(PairedOrder).where(
                 and_(
@@ -189,20 +176,19 @@ class HalfOrderService:
         if existing_paired.scalar_one_or_none():
             raise ValueError(f"Table {joiner_table_no} has already joined this session")
         
-        # Update session status to JOINED (allows multiple joins)
+        # Update session
         if session.status == HalfOrderStatus.ACTIVE:
             session.status = HalfOrderStatus.JOINED
             session.joined_by_table_no = joiner_table_no
             session.joined_by_customer_name = joiner_name
             session.joined_at = now_ist
         
-        # Track additional joiners in session metadata
         if not hasattr(session, 'total_joiners'):
             session.total_joiners = 1
         else:
             session.total_joiners += 1
         
-        # Get menu item for pricing
+        # Fetch menu item
         result = await db.execute(
             select(MenuItem).where(MenuItem.id == session.menu_item_id)
         )
@@ -211,17 +197,17 @@ class HalfOrderService:
         if not menu_item:
             raise ValueError("Menu item not found")
         
-        # Calculate total price (2 half orders)
-        total_price = (menu_item.half_price * 2) if menu_item.half_price else menu_item.price
+        # Full price = half × 2
+        full_price = (menu_item.half_price * 2) if menu_item.half_price else menu_item.price
         
-        # Create paired order with joiner tracking
+        # Create PairedOrder (Option A → store FULL PRICE)
         paired_order = PairedOrder(
             half_session_a=session.id,
-            half_session_b=session.id,  # Will be updated in checkout if there's a second session
+            half_session_b=session.id,
             restaurant_id=session.restaurant_id,
             menu_item_id=menu_item.id,
             menu_item_name=menu_item.name,
-            total_price=total_price,
+            total_price=full_price,  # ✔ FULL PRICE HERE
             status=PairedOrderStatus.PENDING,
             joiner_table_no=joiner_table_no,
             joiner_customer_name=joiner_name,
@@ -231,26 +217,24 @@ class HalfOrderService:
         db.add(paired_order)
         await db.flush()
         
-        # AUTO-CREATE ORDER for Counter Dashboard visibility
-        # When someone joins, create a full order combining both customers
-        from models import Order
+        # Auto-create Counter Order
         import json
         
         order = Order(
             restaurant_id=session.restaurant_id,
-            table_no=f"{session.table_no}+{joiner_table_no}",  # Combined tables
-            customer_name=f"{session.customer_name} & {joiner_name}",  # Both customers
-            phone=f"{session.customer_mobile}, {joiner_mobile}",  # Both phones
+            table_no=f"{session.table_no}+{joiner_table_no}",
+            customer_name=f"{session.customer_name} & {joiner_name}",
+            phone=f"{session.customer_mobile}, {joiner_mobile}",
             items=json.dumps([{
                 "menu_item_id": menu_item.id,
                 "name": menu_item.name,
                 "quantity": 1,
-                "price": total_price,
+                "price": menu_item.half_price,  # ✔ HALF PRICE PER CUSTOMER
                 "type": "paired",
                 "half_session_id": session.id,
                 "paired_order_id": paired_order.id
             }]),
-            total_amount=total_price,
+            total_amount=full_price,  # ✔ FULL combined price for kitchen
             status=OrderStatus.PENDING,
             created_at=utc_now()
         )
@@ -258,15 +242,9 @@ class HalfOrderService:
         db.add(order)
         await db.flush()
         
-        # Link order to paired order
         paired_order.order_id = order.id
         
-        logger.info(
-            f"Auto-created Order #{order.id} for paired half-order session {session.id} "
-            f"(Tables {session.table_no} + {joiner_table_no})"
-        )
-        
-        # Log audit
+        # Audit
         await log_audit(
             db=db,
             user=current_user,
@@ -281,22 +259,17 @@ class HalfOrderService:
             ip_address=ip_address
         )
         
-        logger.info(
-            f"Session {session.id} joined - "
-            f"Original table: {session.table_no}, Joiner table: {joiner_table_no}, "
-            f"Paired order: {paired_order.id}"
-        )
-        
         return {
             "session_id": session.id,
             "paired_order_id": paired_order.id,
-            "order_id": order.id,  # NEW: Include created order ID
+            "order_id": order.id,
             "table_pairing": f"Table {session.table_no} + Table {joiner_table_no}",
             "menu_item": menu_item.name,
-            "total_price": total_price,
+            "total_price": full_price,
             "status": "matched"
         }
     
+    # ---------------------- CANCEL SESSION ----------------------
     @staticmethod
     async def cancel_half_session(
         db: AsyncSession,
@@ -305,7 +278,6 @@ class HalfOrderService:
         reason: Optional[str] = None,
         ip_address: Optional[str] = None
     ) -> HalfOrderSession:
-        """Cancel a half-order session with permission checks"""
         
         result = await db.execute(
             select(HalfOrderSession).where(HalfOrderSession.id == session_id)
@@ -320,9 +292,7 @@ class HalfOrderService:
         
         now_utc = utc_now()
         
-        # Check permissions
         if current_user.role.value == 'customer':
-            # Customers can only cancel within the window
             time_elapsed = (now_utc - session.created_at).total_seconds() / 60
             if time_elapsed > CUSTOMER_CANCEL_WINDOW_MINUTES:
                 raise PermissionError(
@@ -331,10 +301,9 @@ class HalfOrderService:
         elif current_user.role.value not in ['super_admin', 'counter_admin']:
             raise PermissionError("Insufficient permissions to cancel")
         
-        # Cancel the session
-        session.status = HalfOrderStatus.EXPIRED  # Use EXPIRED for cancelled sessions
+        # Cancel
+        session.status = HalfOrderStatus.EXPIRED
         
-        # If there's a paired order, cancel it
         result = await db.execute(
             select(PairedOrder).where(
                 or_(
@@ -348,7 +317,6 @@ class HalfOrderService:
         if paired_order:
             paired_order.status = PairedOrderStatus.CANCELLED
         
-        # Log audit
         await log_audit(
             db=db,
             user=current_user,
@@ -362,13 +330,11 @@ class HalfOrderService:
             ip_address=ip_address
         )
         
-        logger.info(f"Session {session.id} cancelled by {current_user.username}")
-        
         return session
     
+    # ---------------------- GET ACTIVE SESSIONS ----------------------
     @staticmethod
     async def get_active_sessions(db: AsyncSession, restaurant_id: int):
-        """Get all active half-order sessions for a restaurant"""
         now_utc = utc_now()
         
         result = await db.execute(
@@ -385,9 +351,10 @@ class HalfOrderService:
         
         return result.scalars().all()
     
+    # ---------------------- GET JOIN COUNT ----------------------
     @staticmethod
     async def get_session_join_count(db: AsyncSession, session_id: int) -> int:
-        """Get the number of customers who joined a session"""
+        
         result = await db.execute(
             select(PairedOrder).where(
                 or_(
@@ -398,9 +365,10 @@ class HalfOrderService:
         )
         return len(result.scalars().all())
     
+    # ---------------------- EXPIRE SESSIONS ----------------------
     @staticmethod
     async def expire_sessions(db: AsyncSession):
-        """Background job to expire sessions - returns count of expired"""
+        
         now_ist = ist_now()
         
         result = await db.execute(
@@ -412,7 +380,7 @@ class HalfOrderService:
         expired_count = 0
         
         for session in sessions:
-            # Ensure timezone-aware comparison with IST
+            
             expires_at = session.expires_at
             if expires_at.tzinfo is None:
                 expires_at = IST.localize(expires_at)
@@ -422,7 +390,6 @@ class HalfOrderService:
             if expires_at <= now_ist:
                 session.status = HalfOrderStatus.EXPIRED
             
-            # Cancel any pending paired orders
             paired_result = await db.execute(
                 select(PairedOrder).where(
                     and_(
@@ -439,16 +406,8 @@ class HalfOrderService:
                 paired.status = PairedOrderStatus.CANCELLED
             
             expired_count += 1
-            
-            logger.info(
-                f"Expired session {session.id} - "
-                f"Created: {session.created_at.isoformat()}, "
-                f"Expired: {session.expires_at.isoformat()}, "
-                f"Now: {now_utc.isoformat()}"
-            )
         
         if expired_count > 0:
             await db.commit()
-            logger.info(f"Expired {expired_count} half-order sessions")
         
         return expired_count
