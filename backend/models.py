@@ -160,6 +160,7 @@ class Order(Base):
     items = Column(Text)  # JSON string of items
     total_amount = Column(Float, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    session_id = Column(String(100), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     sent_to_kitchen_at = Column(DateTime(timezone=True), nullable=True)
     sent_to_kitchen_by = Column(Integer, nullable=True)
