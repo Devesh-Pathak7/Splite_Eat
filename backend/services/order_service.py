@@ -141,13 +141,14 @@ class OrderService:
         
         logger.info(
             f"Order {order.id} created - "
-            f"Items: {len(items)}, Paired orders: {len(paired_orders)}, Total: ₹{total_amount}"
+            f"Items: {len(items)}, Paired orders: {len(paired_orders)}, Total: ₹{total_amount}, Session: {session_id}"
         )
         
         return {
             "order_id": order.id,
             "status": order.status.value,
             "total_amount": total_amount,
+            "session_id": session_id,
             "paired_orders_completed": completed_paired,
             "created_at": order.created_at.isoformat()
         }
