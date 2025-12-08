@@ -213,3 +213,18 @@ class ErrorLog(Base):
     user_id = Column(Integer, nullable=True)
     request_data = Column(Text)
     created_at = Column(DateTime(timezone=True), default=utc_now)
+
+class TableOrderSession(Base):
+    __tablename__ = "table_order_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    restaurant_id = Column(Integer, ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False)
+    table_no = Column(String(50), nullable=False, index=True)
+    session_id = Column(String(100), unique=True, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    started_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    total_orders_count = Column(Integer, default=0, nullable=False)
+    total_amount = Column(Float, default=0.0, nullable=False)
+    
+    restaurant = relationship("Restaurant", back_populates="table_order_sessions")
