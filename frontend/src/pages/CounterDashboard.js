@@ -332,10 +332,10 @@ const CounterDashboardContent = () => {
                         <div className="flex items-center gap-2">
                           {isHalfOrder ? (
                             <span className="text-sm font-medium text-orange-600 dark:text-amber-500">
-                              🍽️ Half-Order Match: {order.table_no}
+                              🍽️ Half-Order Match: {mainOrder.table_no}
                             </span>
                           ) : (
-                            <span>Table {order.table_no}</span>
+                            <span>Table {mainOrder.table_no}</span>
                           )}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
