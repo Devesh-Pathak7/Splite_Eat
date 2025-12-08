@@ -239,7 +239,6 @@ const CustomerDashboard = () => {
     }, 8000);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant_id, table_no]);
 
   // Optional WebSocket (if you already have one for other pages)
