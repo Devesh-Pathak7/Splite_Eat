@@ -21,6 +21,32 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
 
+@router.get("/half-orders/stats")
+async def get_half_order_stats(
+    restaurant_id: int = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["super_admin"]))
+):
+    """Get half-order statistics"""
+    from sqlalchemy import select, func
+    
+    query = select(
+        func.count(PairedOrder.id).label("half_count"),
+        func.sum(PairedOrder.join_fee).label("join_fee_total")
+    ).select_from(PairedOrder)
+    
+    if restaurant_id:
+        query = query.where(PairedOrder.restaurant_id == restaurant_id)
+    
+    result = await db.execute(query)
+    row = result.first()
+    
+    return {
+        "half_count": row.half_count or 0,
+        "join_fee_total": float(row.join_fee_total or 0)
+    }
+
+
 @router.get("/tables/{table_no}/active-orders")
 async def get_table_active_orders(
     table_no: str,
