@@ -467,6 +467,28 @@ const CounterDashboardContent = () => {
     }
   };
 
+  const clearTable = async (tableNo) => {
+    if (!tableNo || !user?.restaurant_id) return;
+    if (!window.confirm(`Clear table ${tableNo} and end the session?`)) return;
+    try {
+      const headers = getAuthHeaders();
+      await axios.post(
+        `${API_URL}/api/table-sessions/clear-table`,
+        {
+          table_no: tableNo,
+          restaurant_id: Number(user.restaurant_id),
+        },
+        { headers }
+      );
+      toast.success(`Table ${tableNo} cleared successfully`);
+      fetchOrders();
+    } catch (error) {
+      console.error("clearTable error:", error);
+      const msg = error.response?.data?.detail || "Failed to clear table";
+      toast.error(msg);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate("/login");
