@@ -81,24 +81,18 @@ const CustomerDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${API_URL}/orders?restaurant_id=${restaurant_id}&page=1&page_size=50`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${API_URL}/orders/tables/${table_no}/active-orders?restaurant_id=${restaurant_id}`
       );
       
-      // Filter orders for this table
-      const tableOrders = res.data.orders.filter(order => 
-        order.table_no === table_no || 
-        order.table_no.includes(table_no)
-      );
+      const orders = res.data.orders || [];
       
       // Separate active and completed
-      const active = tableOrders.filter(order => 
+      const active = orders.filter(order => 
         ['PENDING', 'PREPARING', 'READY'].includes(order.status)
       );
       
-      const history = tableOrders.filter(order => 
+      const history = orders.filter(order => 
         ['SERVED', 'COMPLETED', 'CANCELLED'].includes(order.status)
       );
       
