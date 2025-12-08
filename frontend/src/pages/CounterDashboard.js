@@ -300,14 +300,21 @@ const CounterDashboardContent = () => {
               <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Active Orders</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').map(order => {
-                const isHalfOrder = order.table_no.includes('+');
-                const waitingTime = Math.floor((new Date() - new Date(order.created_at)) / 60000);
+              {groupedOrders.map(group => {
+                const mainOrder = group.orders[0];
+                const isHalfOrder = mainOrder.table_no.includes('+');
+                const totalQty = group.orders.reduce((sum, o) => {
+                  const items = JSON.parse(o.items || '[]');
+                  return sum + items.reduce((s, i) => s + (i.quantity || 1), 0);
+                }, 0);
+                const waitingTime = Math.floor((new Date() - new Date(mainOrder.created_at)) / 60000);
                 return (
-                  <Card key={order.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md hover:shadow-lg transition-all" data-testid={`order-${order.id}`}>
+                  <Card key={group.session_id || mainOrder.id} className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md hover:shadow-lg transition-all" data-testid={`order-${mainOrder.id}`}>
                     <CardHeader>
                       <CardTitle className="flex justify-between items-start">
-                        <span style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Order #{order.id}</span>
+                        <span style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                          {group.session_id ? `Session #${group.session_id}` : `Order #${mainOrder.id}`} ({group.orders.length} order{group.orders.length>1?'s':''})
+                        </span>
                         <Badge className={`
                           ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ''}
                           ${order.status === 'PREPARING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : ''}
