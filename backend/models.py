@@ -147,6 +147,18 @@ class HalfOrderSession(Base):
     
     restaurant = relationship("Restaurant", back_populates="half_order_sessions")
 
+class TableOrderSession(Base):
+    __tablename__ = "table_order_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    restaurant_id = Column(Integer, ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False)
+    table_no = Column(String(20), nullable=False)
+    status = Column(String(20), default="ACTIVE", nullable=False)
+    started_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+
 class Order(Base):
     __tablename__ = "orders"
     
@@ -158,6 +170,7 @@ class Order(Base):
     items = Column(Text)  # JSON string of items
     total_amount = Column(Float, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    session_id = Column(Integer, ForeignKey("table_order_sessions.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     sent_to_kitchen_at = Column(DateTime(timezone=True), nullable=True)
     sent_to_kitchen_by = Column(Integer, nullable=True)
