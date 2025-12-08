@@ -109,6 +109,7 @@ const AdminDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
+        <HalfOrderStatsWidget />
         <Tabs defaultValue="restaurants" className="space-y-6">
           <TabsList className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl p-1">
             <TabsTrigger value="restaurants" data-testid="restaurants-tab"><Building className="w-4 h-4 mr-2" />Restaurants</TabsTrigger>
