@@ -269,7 +269,8 @@ async def update_order(
             data={
                 "order_id": order_id,
                 "status": order.status.value,
-                "table_no": order.table_no
+                "table_no": order.table_no,
+                "session_id": order.session_id
             }
         )
         
