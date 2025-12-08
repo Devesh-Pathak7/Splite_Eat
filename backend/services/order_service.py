@@ -67,6 +67,10 @@ class OrderService:
                 
                 paired_orders.append(paired_order)
         
+        # Get or create table session
+        from routers.table_sessions_router import get_or_create_session, update_session_totals
+        session_id = await get_or_create_session(db, restaurant_id, table_no)
+        
         # Create the order - serialize items properly
         items_json = json.dumps([
             {
@@ -86,11 +90,15 @@ class OrderService:
             items=items_json,
             total_amount=total_amount,
             status=OrderStatus.PENDING,
+            session_id=session_id,
             created_at=utc_now()
         )
         
         db.add(order)
         await db.flush()
+        
+        # Update session totals
+        await update_session_totals(db, session_id)
         
         # Complete paired orders
         completed_paired = []
