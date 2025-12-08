@@ -70,18 +70,16 @@ async def create_order(
         
         await db.commit()
         
-        # Broadcast WebSocket event
+        # Broadcast with session_id
+        from services.websocket_service import broadcast_event
         await broadcast_event(
             restaurant_id=data.restaurant_id,
             event_type="order.created",
             data={
-                "order_id": result["order_id"],
+                "order_id": result.get("order_id"),
+                "session_id": result.get("session_id"),
                 "table_no": data.table_no,
-                "customer_name": data.customer_name,
-                "total_amount": result["total_amount"],
-                "status": result["status"],
-                "paired_orders_count": len(result.get("paired_orders_completed", [])),
-                "created_at": result["created_at"]
+                "status": "PENDING"
             }
         )
         
