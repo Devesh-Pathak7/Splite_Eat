@@ -295,7 +295,8 @@ class HalfOrderService:
         return {
             "session_id": session.id,
             "paired_order_id": paired_order.id,
-            "order_id": order.id,  # NEW: Include created order ID
+            "order_id": order.id,
+            "table_order_session_id": order.session_id,
             "table_pairing": f"Table {session.table_no} + Table {joiner_table_no}",
             "menu_item": menu_item.name,
             "total_price": total_price,
