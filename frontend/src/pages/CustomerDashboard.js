@@ -71,6 +71,7 @@ const CustomerDashboard = () => {
   const [halfSessions, setHalfSessions] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tableSession, setTableSession] = useState(null);
 
   // Build quick lookup: menuId -> { price, half_price, name, ... }
   const menuMap = useMemo(() => {
