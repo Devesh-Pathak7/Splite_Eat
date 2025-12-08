@@ -212,7 +212,11 @@ class HalfOrderService:
             raise ValueError("Menu item not found")
         
         # Calculate total price (2 half orders)
-        total_price = (menu_item.half_price * 2) if menu_item.half_price else menu_item.price
+        base_price = (menu_item.half_price * 2) if menu_item.half_price else menu_item.price
+        
+        # Apply join fee
+        join_fee = float(os.getenv('HALF_ORDER_JOIN_FEE', '20'))
+        total_price = base_price + join_fee
         
         # Create paired order with joiner tracking
         paired_order = PairedOrder(
