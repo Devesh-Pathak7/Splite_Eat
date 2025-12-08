@@ -9,7 +9,7 @@ import logging
 
 from models import (
     Order, PairedOrder, HalfOrderSession, User, MenuItem,
-    OrderStatus, PairedOrderStatus, HalfOrderStatus, utc_now
+    OrderStatus, PairedOrderStatus, HalfOrderStatus, utc_now, TableOrderSession
 )
 from services.audit_service import log_audit
 
