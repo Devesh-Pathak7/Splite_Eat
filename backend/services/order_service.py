@@ -145,6 +145,7 @@ class OrderService:
         
         return {
             "order_id": order.id,
+            "session_id": order.session_id,
             "status": order.status.value,
             "total_amount": total_amount,
             "paired_orders_completed": completed_paired,
