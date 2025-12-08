@@ -316,16 +316,16 @@ const CounterDashboardContent = () => {
                           {group.session_id ? `Session #${group.session_id}` : `Order #${mainOrder.id}`} ({group.orders.length} order{group.orders.length>1?'s':''})
                         </span>
                         <Badge className={`
-                          ${order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ''}
-                          ${order.status === 'PREPARING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : ''}
-                          ${order.status === 'READY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}
-                          ${order.status === 'SERVED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : ''}
+                          ${mainOrder.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ''}
+                          ${mainOrder.status === 'PREPARING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : ''}
+                          ${mainOrder.status === 'READY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}
+                          ${mainOrder.status === 'SERVED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : ''}
                         `}>
-                          {order.status === 'PENDING' && '🟡'}
-                          {order.status === 'PREPARING' && '🔵'}
-                          {order.status === 'READY' && '🟢'}
-                          {order.status === 'SERVED' && '✅'}
-                          {' '}{order.status}
+                          {mainOrder.status === 'PENDING' && '🟡'}
+                          {mainOrder.status === 'PREPARING' && '🔵'}
+                          {mainOrder.status === 'READY' && '🟢'}
+                          {mainOrder.status === 'SERVED' && '✅'}
+                          {' '}{mainOrder.status}
                         </Badge>
                       </CardTitle>
                       <CardDescription className="space-y-1">
