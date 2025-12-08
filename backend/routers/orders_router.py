@@ -21,6 +21,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
 
+@router.get("/tables/{table_no}/active-orders")
+async def get_table_active_orders(
+    table_no: str,
+    restaurant_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get active session and orders for a table"""
+    from services.session_service import SessionService
+    from sqlalchemy import select
+    
+    session = await SessionService.get_active_session_for_table(db, restaurant_id, table_no)
+    
+    orders = []
+    if session:
+        result = await db.execute(
+            select(Order).where(Order.session_id == session.id)
+        )
+        orders = result.scalars().all()
+    
+    return {
+        "session": {"id": session.id, "table_no": session.table_no, "started_at": session.started_at.isoformat()} if session else None,
+        "orders": [OrderResponse.model_validate(o) for o in orders]
+    }
+
+
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_order(
     data: OrderCreate,
