@@ -640,6 +640,7 @@ app.include_router(enhanced_router)
 app.include_router(half_order_router)
 app.include_router(orders_router)
 app.include_router(counter_router)
+app.include_router(table_sessions_router)
 
 # Startup and shutdown events
 @app.on_event("startup")
