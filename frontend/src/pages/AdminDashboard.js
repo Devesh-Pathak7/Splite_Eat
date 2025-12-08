@@ -17,6 +17,42 @@ import { getRestaurantTypeLabel } from '../utils/helpers';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 
+const HalfOrderStatsWidget = () => {
+  const [stats, setStats] = useState({ half_count: 0, join_fee_total: 0 });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_URL}/orders/half-orders/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setStats(res.data);
+      } catch (err) {
+        console.error('Stats fetch error:', err);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <Card className="bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30">
+        <CardContent className="pt-6">
+          <div className="text-3xl font-bold text-orange-600">{stats.half_count}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Total Half-Orders</div>
+        </CardContent>
+      </Card>
+      <Card className="bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30">
+        <CardContent className="pt-6">
+          <div className="text-3xl font-bold text-green-600">₹{stats.join_fee_total.toFixed(2)}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Total Join Fees Collected</div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
