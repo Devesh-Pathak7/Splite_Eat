@@ -354,8 +354,8 @@ const CounterDashboardContent = () => {
                           Start Preparing
                         </Button>
                       )}
-                      {order.status === 'PREPARING' && (
-                        <Button size="sm" onClick={() => updateOrderStatus(order.id, 'READY')} className="bg-green-500 hover:bg-green-600" data-testid={`order-${order.id}-ready-btn`}>
+                      {mainOrder.status === 'PREPARING' && (
+                        <Button size="sm" onClick={() => updateOrderStatus(mainOrder.id, 'READY')} className="bg-green-500 hover:bg-green-600" data-testid={`order-${mainOrder.id}-ready-btn`}>
                           Mark Ready
                         </Button>
                       )}
