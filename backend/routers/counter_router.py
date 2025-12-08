@@ -113,6 +113,34 @@ async def get_tables_status(
         raise HTTPException(status_code=500, detail="Failed to fetch table status")
 
 
+@router.post("/tables/{table_no}/clear")
+async def clear_table(
+    table_no: str,
+    restaurant_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["counter_admin", "super_admin"]))
+):
+    """Close table session"""
+    from services.session_service import SessionService
+    from services.websocket_service import broadcast_event
+    
+    session = await SessionService.get_active_session_for_table(db, restaurant_id, table_no)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="No active session for this table")
+    
+    await SessionService.close_session(db, session.id)
+    await db.commit()
+    
+    await broadcast_event(
+        restaurant_id=restaurant_id,
+        event_type="table.cleared",
+        data={"table_no": table_no, "session_id": session.id}
+    )
+    
+    return {"session_id": session.id, "status": "closed"}
+
+
 @router.get("/dashboard-stats")
 async def get_counter_dashboard_stats(
     restaurant_id: int,
