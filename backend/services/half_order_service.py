@@ -225,8 +225,12 @@ class HalfOrderService:
         db.add(paired_order)
         await db.flush()
         
-        # Auto-create Counter Order
+        # Auto-create Counter Order with session
         import json
+        from routers.table_sessions_router import get_or_create_session, update_session_totals
+        
+        # Get or create session for the original table (creator's table)
+        order_session_id = await get_or_create_session(db, session.restaurant_id, session.table_no)
         
         order = Order(
             restaurant_id=session.restaurant_id,
@@ -244,6 +248,7 @@ class HalfOrderService:
             }]),
             total_amount=full_price,  # ✔ FULL combined price for kitchen
             status=OrderStatus.PENDING,
+            session_id=order_session_id,
             created_at=utc_now()
         )
         
@@ -251,6 +256,9 @@ class HalfOrderService:
         await db.flush()
         
         paired_order.order_id = order.id
+        
+        # Update session totals
+        await update_session_totals(db, order_session_id)
         
         # Audit
         await log_audit(
