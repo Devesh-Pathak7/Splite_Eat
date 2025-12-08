@@ -229,11 +229,13 @@ const CustomerDashboard = () => {
     fetchMenu();
     fetchOrders();
     fetchHalfSessions();
+    fetchTableSession();
 
     // Poll orders + sessions for real-time updates
     const interval = setInterval(() => {
       fetchOrders();
       fetchHalfSessions();
+      fetchTableSession();
     }, 8000);
 
     return () => clearInterval(interval);
