@@ -208,6 +208,19 @@ const CustomerDashboard = () => {
     }
   };
 
+  const fetchTableSession = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/table-sessions/active-orders`, {
+        params: { restaurant_id, table_no },
+      });
+      if (res.data && res.data.session) {
+        setTableSession(res.data.session);
+      }
+    } catch (err) {
+      console.error("Table session fetch error:", err);
+    }
+  };
+
   /* ---------------- Effects ---------------- */
 
   // Initial load
