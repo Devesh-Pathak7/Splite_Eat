@@ -345,9 +345,24 @@ const CounterDashboardContent = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="text-2xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                        {formatCurrency(mainOrder.total_amount)}
+                      <div className="flex justify-between items-center">
+                        <div className="text-2xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                          {formatCurrency(mainOrder.total_amount)}
+                        </div>
+                        <div className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                          Qty: {totalQty}
+                        </div>
                       </div>
+                      {group.orders.length > 1 && (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => bulkUpdateStatus(group.orders.map(o => o.id), 'READY')}>
+                            Ready All
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => bulkUpdateStatus(group.orders.map(o => o.id), 'SERVED')}>
+                            Serve All
+                          </Button>
+                        </div>
+                      )}
                     <div className="flex flex-wrap gap-2">
                       {mainOrder.status === 'PENDING' && (
                         <Button size="sm" onClick={() => updateOrderStatus(mainOrder.id, 'PREPARING')} className="bg-blue-500 hover:bg-blue-600" data-testid={`order-${mainOrder.id}-preparing-btn`}>
