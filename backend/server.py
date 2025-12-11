@@ -16,8 +16,8 @@ from dotenv import load_dotenv
 # Import models and utilities
 from database import get_db, engine, Base
 from models import (
-    User, Restaurant, Table, MenuItem, HalfOrderSession, Order, AuditLog,
-    UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
+    User, Restaurant, Table, MenuItem, HalfOrderSession, Order, AuditLog, PairedOrder,
+    UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction, PairedOrderStatus
 )
 from schemas import *
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role, log_audit, check_restaurant_access
@@ -542,6 +542,66 @@ async def update_order_status(
     
     return order
 
+# ============ ADMIN ROUTES ============
+@api_router.get("/admin/restaurant-users")
+async def get_restaurant_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Get all restaurant users (COUNTER_ADMIN role only)"""
+    result = await db.execute(
+        select(User)
+        .where(User.role == UserRole.COUNTER_ADMIN)
+        .order_by(User.created_at.desc())
+    )
+    users = result.scalars().all()
+    
+    # Add restaurant names
+    response = []
+    for user in users:
+        restaurant_name = ""
+        if user.restaurant_id:
+            rest_result = await db.execute(
+                select(Restaurant).where(Restaurant.id == user.restaurant_id)
+            )
+            restaurant = rest_result.scalar_one_or_none()
+            restaurant_name = restaurant.name if restaurant else ""
+        
+        response.append({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role.value,
+            "restaurant_id": user.restaurant_id,
+            "restaurant_name": restaurant_name,
+            "created_at": user.created_at
+        })
+    
+    return response
+
+@api_router.delete("/admin/restaurant-users/{user_id}")
+async def delete_restaurant_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Delete a restaurant user (SUPER_ADMIN only)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.role != UserRole.COUNTER_ADMIN:
+        raise HTTPException(
+            status_code=400,
+            detail="Only COUNTER_ADMIN users can be deleted here"
+        )
+    
+    await db.delete(user)
+    await db.commit()
+    
+    return {"message": "Restaurant user deleted successfully"}
+
 # ============ ANALYTICS ROUTES ============
 @api_router.get("/analytics/overview")
 async def get_analytics_overview(
@@ -620,6 +680,116 @@ async def get_popular_items(
     # Sort and limit
     sorted_items = sorted(item_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
     return [{"name": name, "count": count} for name, count in sorted_items]
+
+@api_router.get("/analytics/half-orders-joined")
+async def get_half_orders_joined(
+    restaurant_id: Optional[int] = None,
+    period: str = "today",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get count of joined half-order pairs with filters"""
+    # Prefer PairedOrder table if used, otherwise fall back to scanning Orders
+    now = datetime.now(timezone.utc)
+    start = None
+    if period == "today":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        days_ago = (now.weekday())
+        start = (now - timedelta(days=days_ago)).replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "month":
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "last_3_months":
+        start = now - timedelta(days=90)
+
+    # Query completed Orders and identify joined half-orders by convention:
+    # - order.table_no contains '+' (e.g. "T1 + T2") OR
+    # - one of the order.items has item['type'] == 'half_order'
+    order_q = select(Order).where(Order.status == OrderStatus.COMPLETED)
+    if restaurant_id:
+        order_q = order_q.where(Order.restaurant_id == restaurant_id)
+    if start:
+        order_q = order_q.where(Order.created_at >= start)
+
+    result = await db.execute(order_q)
+    orders = result.scalars().all()
+
+    joined_count = 0
+    for o in orders:
+        try:
+            if o.table_no and "+" in str(o.table_no):
+                joined_count += 1
+                continue
+            items = json.loads(o.items) if o.items else []
+            if isinstance(items, list):
+                if any((it.get('type') == 'half_order') for it in items if isinstance(it, dict)):
+                    joined_count += 1
+                    continue
+        except Exception:
+            # ignore parse errors and treat as not joined
+            continue
+
+    return {
+        "period": period,
+        "restaurant_id": restaurant_id,
+        "joined_pairs_count": joined_count
+    }
+
+@api_router.get("/analytics/half-order-commission")
+async def get_half_order_commission(
+    restaurant_id: Optional[int] = None,
+    period: str = "today",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get half-order commission calculation"""
+    COMMISSION_RATE = 20  # Configurable: ₹20 per joined pair
+
+    # Reuse the same logic as half-orders-joined to count joined completed orders
+    now = datetime.now(timezone.utc)
+    start = None
+    if period == "today":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        days_ago = (now.weekday())
+        start = (now - timedelta(days=days_ago)).replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "month":
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "last_3_months":
+        start = now - timedelta(days=90)
+
+    order_q = select(Order).where(Order.status == OrderStatus.COMPLETED)
+    if restaurant_id:
+        order_q = order_q.where(Order.restaurant_id == restaurant_id)
+    if start:
+        order_q = order_q.where(Order.created_at >= start)
+
+    result = await db.execute(order_q)
+    orders = result.scalars().all()
+
+    joined_pairs = 0
+    for o in orders:
+        try:
+            if o.table_no and "+" in str(o.table_no):
+                joined_pairs += 1
+                continue
+            items = json.loads(o.items) if o.items else []
+            if isinstance(items, list):
+                if any((it.get('type') == 'half_order') for it in items if isinstance(it, dict)):
+                    joined_pairs += 1
+                    continue
+        except Exception:
+            continue
+
+    commission = joined_pairs * COMMISSION_RATE
+
+    return {
+        "period": period,
+        "restaurant_id": restaurant_id,
+        "joined_pairs_count": joined_pairs,
+        "commission_rate": COMMISSION_RATE,
+        "total_commission": commission
+    }
 
 # ============ WEBSOCKET ============
 @app.websocket("/ws/{restaurant_id}")

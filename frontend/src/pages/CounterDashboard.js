@@ -820,17 +820,17 @@ const CounterDashboardContent = () => {
                               return (
                                 <div
                                   key={idx}
-                                  className="flex justify-between gap-2"
+                                  className="flex justify-between gap-3 items-start"
                                 >
-                                  <span className="truncate">
-                                    {it.name} × {qty}
+                                  <span className="flex-1">
+                                    {it.name} <span className="font-semibold">×{qty}</span>
                                     {it.type === "paired" && (
                                       <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200">
                                         Half Order
                                       </span>
                                     )}
                                   </span>
-                                  <span className="flex-shrink-0 text-xs font-medium text-gray-800 dark:text-gray-100">
+                                  <span className="flex-shrink-0 text-xs font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">
                                     {formatCurrency(linePrice)}
                                   </span>
                                 </div>

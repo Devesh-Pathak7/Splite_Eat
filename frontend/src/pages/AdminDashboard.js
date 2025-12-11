@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { LogOut, Moon, Sun, Plus, Building, Users, BarChart3, Edit, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { getRestaurantTypeLabel } from '../utils/helpers';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -22,7 +23,9 @@ const AdminDashboard = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState([]);
+  const [restaurantUsers, setRestaurantUsers] = useState([]);
   const [showAddRestaurant, setShowAddRestaurant] = useState(false);
+  const [showAddRestaurantUser, setShowAddRestaurantUser] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState(null);
   const [newRestaurant, setNewRestaurant] = useState({
     name: '',
@@ -30,9 +33,15 @@ const AdminDashboard = () => {
     contact: '',
     type: 'mixed'
   });
+  const [newRestaurantUser, setNewRestaurantUser] = useState({
+    username: '',
+    password: '',
+    restaurant_id: ''
+  });
 
   useEffect(() => {
     fetchRestaurants();
+    fetchRestaurantUsers();
   }, []);
 
   const fetchRestaurants = async () => {
@@ -41,6 +50,15 @@ const AdminDashboard = () => {
       setRestaurants(response.data);
     } catch (error) {
       toast.error('Failed to load restaurants');
+    }
+  };
+
+  const fetchRestaurantUsers = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/admin/restaurant-users`);
+      setRestaurantUsers(response.data);
+    } catch (error) {
+      console.error('Failed to load restaurant users');
     }
   };
 
@@ -82,6 +100,38 @@ const AdminDashboard = () => {
     }
   };
 
+  const addRestaurantUser = async () => {
+    if (!newRestaurantUser.username || !newRestaurantUser.password || !newRestaurantUser.restaurant_id) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/auth/register`, {
+        username: newRestaurantUser.username,
+        password: newRestaurantUser.password,
+        role: 'counter_admin',
+        restaurant_id: parseInt(newRestaurantUser.restaurant_id)
+      });
+      toast.success('Restaurant user created successfully');
+      setShowAddRestaurantUser(false);
+      setNewRestaurantUser({ username: '', password: '', restaurant_id: '' });
+      fetchRestaurantUsers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to create restaurant user');
+    }
+  };
+
+  const deleteRestaurantUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      await axios.delete(`${API_URL}/admin/restaurant-users/${userId}`);
+      toast.success('Restaurant user deleted');
+      fetchRestaurantUsers();
+    } catch (error) {
+      toast.error('Failed to delete restaurant user');
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -112,6 +162,7 @@ const AdminDashboard = () => {
         <Tabs defaultValue="restaurants" className="space-y-6">
           <TabsList className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl p-1">
             <TabsTrigger value="restaurants" data-testid="restaurants-tab"><Building className="w-4 h-4 mr-2" />Restaurants</TabsTrigger>
+            <TabsTrigger value="users" data-testid="users-tab"><Users className="w-4 h-4 mr-2" />Restaurant Users</TabsTrigger>
             <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} data-testid="analytics-tab"><BarChart3 className="w-4 h-4 mr-2" />Analytics</TabsTrigger>
           </TabsList>
 
@@ -152,6 +203,63 @@ const AdminDashboard = () => {
               })}
             </div>
           </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Restaurant Users</h2>
+              <Button onClick={() => setShowAddRestaurantUser(true)} className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700" data-testid="add-restaurant-user-btn">
+                <Plus className="w-4 h-4 mr-2" />Create User
+              </Button>
+            </div>
+
+            <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md">
+              <CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Restaurant</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {restaurantUsers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan="4" className="text-center py-4 text-gray-500">
+                            No restaurant users yet
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        restaurantUsers.map(ru => (
+                          <TableRow key={ru.id}>
+                            <TableCell className="font-medium">{ru.username}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                                {ru.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{ru.restaurant_name || 'N/A'}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteRestaurantUser(ru.id)}
+                                data-testid={`delete-user-${ru.id}-btn`}
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />Delete
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -178,6 +286,52 @@ const AdminDashboard = () => {
               </Select>
             </div>
             <Button onClick={addRestaurant} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-add-restaurant-btn">Add Restaurant</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddRestaurantUser} onOpenChange={setShowAddRestaurantUser}>
+        <DialogContent className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Create Restaurant User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Username</Label>
+              <Input
+                value={newRestaurantUser.username}
+                onChange={(e) => setNewRestaurantUser({...newRestaurantUser, username: e.target.value})}
+                placeholder="Enter username"
+                data-testid="add-user-username-input"
+              />
+            </div>
+            <div>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={newRestaurantUser.password}
+                onChange={(e) => setNewRestaurantUser({...newRestaurantUser, password: e.target.value})}
+                placeholder="Enter password"
+                data-testid="add-user-password-input"
+              />
+            </div>
+            <div>
+              <Label>Restaurant</Label>
+              <Select value={newRestaurantUser.restaurant_id} onValueChange={(value) => setNewRestaurantUser({...newRestaurantUser, restaurant_id: value})}>
+                <SelectTrigger data-testid="add-user-restaurant-select">
+                  <SelectValue placeholder="Select a restaurant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {restaurants.map(r => (
+                    <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-gray-500">
+              Role: <span className="font-semibold">Counter Admin</span> (Fixed)
+            </div>
+            <Button onClick={addRestaurantUser} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-add-user-btn">Create User</Button>
           </div>
         </DialogContent>
       </Dialog>
