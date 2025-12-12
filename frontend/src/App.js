@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Toaster } from './components/ui/sonner';
+import IntroPage from './pages/IntroPage';
 import LoginPage from './pages/LoginPage';
 import MenuPage from './pages/MenuPageProduction';
 import CustomerDashboard from './pages/CustomerDashboard';
@@ -40,6 +41,7 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      <Route path="/" element={user ? <Navigate to={getRoleBasedRoute(user.role)} replace /> : <IntroPage />} />
       <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} replace /> : <LoginPage />} />
       <Route path="/menu/:restaurant_id/:table_no" element={<MenuPage />} />
       <Route path="/my-orders/:restaurant_id/:table_no" element={<CustomerDashboard />} />
@@ -65,16 +67,6 @@ const AppRoutes = () => {
           <ProtectedRoute allowedRoles={['super_admin']}>
             <AnalyticsPage />
           </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          user ? (
-            <Navigate to={getRoleBasedRoute(user.role)} replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
         }
       />
     </Routes>
