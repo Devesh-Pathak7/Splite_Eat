@@ -776,6 +776,9 @@ const resp = await axios.get(
       return groupsArray.map((group) => {
         const firstOrder = group.orders[0];
 
+        // Compute table label compatible with both field names
+        const tableLabel = firstOrder.table_reference || firstOrder.table_no || "-";
+
         const isHalfOrder = group.orders.some(
           (o) =>
             (String(o.table_no || "").includes("+")) ||
@@ -784,8 +787,8 @@ const resp = await axios.get(
         );
 
         const formattedTableLabel = isHalfOrder
-          ? formatHalfOrderLabel(firstOrder.table_no || group.key)
-          : `Table ${group.key}`;
+          ? formatHalfOrderLabel(tableLabel || group.key)
+          : `Table ${tableLabel}`;
 
         const waitingTime = Math.max(
           0,
@@ -817,6 +820,9 @@ const resp = await axios.get(
                     className="font-semibold text-gray-900 dark:text-gray-50"
                   >
                     {displayLabel}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    {formattedTableLabel}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     <button
