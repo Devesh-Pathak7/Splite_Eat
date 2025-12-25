@@ -4,14 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 from typing import List, Optional
 import csv
 import io
 import logging
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 from database import get_db
-from models import User, Order, OrderStatus, utc_now
+from models import User, Order, utc_now
 from auth import get_current_user, require_role
 from services.order_service import OrderService
 from services.websocket_service import broadcast_event
@@ -134,7 +138,10 @@ async def get_orders(
         
         # Status filter
         if status_filter:
-            conditions.append(Order.status == OrderStatus[status_filter])
+            conditions.append(Order.status == status_filter)
+        else:
+            # Exclude SESSION_CLOSED orders from active orders list
+            conditions.append(Order.status != "SESSION_CLOSED")
         
         # Count total
         count_query = select(func.count(Order.id))
@@ -174,6 +181,7 @@ async def get_order_history(
     restaurant_id: int,
     period: str = Query("today", regex="^(today|this_week|custom)$"),
     type_filter: str = Query("all", regex="^(half|full|all)$"),
+    timezone_str: str = Query("Asia/Kolkata", description="Timezone for date filtering"),
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -192,24 +200,58 @@ async def get_order_history(
             if current_user.restaurant_id != restaurant_id:
                 raise HTTPException(status_code=403, detail="Access denied to this restaurant")
         
-        # Base conditions: only COMPLETED orders
-        conditions = [Order.status == OrderStatus.COMPLETED, Order.restaurant_id == restaurant_id]
+        # Base conditions: only COMPLETED and SESSION_CLOSED orders (historical)
+        conditions = [Order.status.in_(["COMPLETED", "SESSION_CLOSED"]), Order.restaurant_id == restaurant_id]
         
-        # Date filtering (apply UTC -> IST conversion at query level)
+        # Date filtering (build local timezone ranges, convert to UTC for database filtering)
+        try:
+            local_tz = ZoneInfo(timezone_str)
+        except Exception:
+            local_tz = ZoneInfo("Asia/Kolkata")  # fallback
+            
         if period == "today":
-            # Today's IST date
-            conditions.append(func.date(func.convert_tz(Order.created_at, '+00:00', '+05:30')) == func.curdate())
+            # Today's date in the specified timezone
+            now_local = datetime.now(local_tz)
+            today_local = now_local.date()
+            start_local = datetime.combine(today_local, time.min).replace(tzinfo=local_tz)
+            end_local = datetime.combine(today_local, time.max).replace(tzinfo=local_tz)
+            
+            # Convert to UTC for database filtering (DB stores UTC timestamps)
+            start_utc = start_local.astimezone(timezone.utc)
+            end_utc = end_local.astimezone(timezone.utc)
+            
+            conditions.append(Order.created_at >= start_utc)
+            conditions.append(Order.created_at <= end_utc)
+            
         elif period == "this_week":
-            # This week IST
-            conditions.append(func.yearweek(func.convert_tz(Order.created_at, '+00:00', '+05:30'), 1) == func.yearweek(func.curdate(), 1))
+            # This week in the specified timezone
+            now_local = datetime.now(local_tz)
+            # Get Monday of current week
+            monday_local = now_local - timedelta(days=now_local.weekday())
+            monday_local = monday_local.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # Get Sunday of current week
+            sunday_local = monday_local + timedelta(days=6, hours=23, minutes=59, seconds=59)
+            
+            # Convert to UTC for database filtering
+            start_utc = monday_local.astimezone(timezone.utc)
+            end_utc = sunday_local.astimezone(timezone.utc)
+            
+            conditions.append(Order.created_at >= start_utc)
+            conditions.append(Order.created_at <= end_utc)
+            
         elif period == "custom":
-            # Expect start_date/end_date as YYYY-MM-DD (IST)
-            if start_date:
-                start_str = f"{start_date} 00:00:00"
-                conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') >= start_str)
-            if end_date:
-                end_str = f"{end_date} 23:59:59"
-                conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') <= end_str)
+            # Expect start_date/end_date as YYYY-MM-DD (local timezone)
+            if start_date or end_date:
+                if start_date:
+                    start_local = datetime.combine(datetime.strptime(start_date, '%Y-%m-%d').date(), time.min).replace(tzinfo=local_tz)
+                    start_utc = start_local.astimezone(timezone.utc)
+                    conditions.append(Order.created_at >= start_utc)
+                    
+                if end_date:
+                    end_local = datetime.combine(datetime.strptime(end_date, '%Y-%m-%d').date(), time.max).replace(tzinfo=local_tz)
+                    end_utc = end_local.astimezone(timezone.utc)
+                    conditions.append(Order.created_at <= end_utc)
         
         # Get all matching orders (without type filter, since we filter in Python)
         query = select(Order).order_by(Order.created_at.desc())
@@ -268,6 +310,7 @@ async def get_order_history(
 @router.get("/export")
 async def export_orders_csv(
     restaurant_id: Optional[int] = None,
+    timezone_str: str = Query("Asia/Kolkata", description="Timezone for date filtering"),
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -286,11 +329,26 @@ async def export_orders_csv(
                 conditions.append(Order.restaurant_id == current_user.restaurant_id)
         
         if start_date:
-            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            conditions.append(Order.created_at >= start_dt)
+            try:
+                local_tz = ZoneInfo(timezone_str)
+            except Exception:
+                local_tz = ZoneInfo("Asia/Kolkata")  # fallback
+            
+            start_local = datetime.combine(datetime.strptime(start_date, '%Y-%m-%d').date(), time.min).replace(tzinfo=local_tz)
+            start_utc = start_local.astimezone(timezone.utc)
+            conditions.append(Order.created_at >= start_utc)
         if end_date:
-            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-            conditions.append(Order.created_at <= end_dt)
+            try:
+                local_tz = ZoneInfo(timezone_str)
+            except Exception:
+                local_tz = ZoneInfo("Asia/Kolkata")  # fallback
+                
+            end_local = datetime.combine(datetime.strptime(end_date, '%Y-%m-%d').date(), time.max).replace(tzinfo=local_tz)
+            end_utc = end_local.astimezone(timezone.utc)
+            conditions.append(Order.created_at <= end_utc)
+        
+        # Filter for historical orders (COMPLETED and SESSION_CLOSED)
+        conditions.append(Order.status.in_(["COMPLETED", "SESSION_CLOSED"]))
         
         query = select(Order).order_by(Order.created_at.desc())
         if conditions:
@@ -319,7 +377,7 @@ async def export_orders_csv(
                 order.customer_name,
                 order.phone,
                 f"₹{order.total_amount:.2f}",
-                order.status.value,
+                order.status,
                 order.created_at.isoformat(),
                 order.sent_to_kitchen_at.isoformat() if order.sent_to_kitchen_at else '',
                 order.cancelled_at.isoformat() if order.cancelled_at else ''
@@ -367,7 +425,7 @@ async def update_order(
             event_type="order.status_updated",
             data={
                 "order_id": order_id,
-                "status": order.status.value,
+                "status": order.status,
                 "table_no": order.table_no
             }
         )

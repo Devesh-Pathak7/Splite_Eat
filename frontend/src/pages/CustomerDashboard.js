@@ -71,7 +71,7 @@ const CustomerDashboard = () => {
   const [halfSessions, setHalfSessions] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [historyPeriod, setHistoryPeriod] = useState('month');
+  const [sessionClosed, setSessionClosed] = useState(false);
 
   // Build quick lookup: menuId -> { price, half_price, name, ... }
   const menuMap = useMemo(() => {
@@ -161,44 +161,33 @@ const CustomerDashboard = () => {
   const fetchOrders = async () => {
     try {
       const params = { restaurant_id, page: 1, page_size: 50 };
-      // map local period to backend period/custom
-      if (historyPeriod === 'today') params.period = 'today';
-      else if (historyPeriod === 'week') params.period = 'last_7';
-      else if (historyPeriod === 'month') params.period = 'month';
-      else if (historyPeriod === '3months') {
-        // use custom with start/end YYYY-MM-DD
-        const now = new Date();
-        const end = now.toISOString().slice(0, 10);
-        const startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        const start = startDate.toISOString().slice(0, 10);
-        params.period = 'custom';
-        params.start_date = start;
-        params.end_date = end;
-      }
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.get(`${API_URL}/orders`, { params, headers });
 
       const data = res.data;
-      const list = Array.isArray(data.orders)
-        ? data.orders
-        : Array.isArray(data)
-        ? data
-        : [];
+      const list = Array.isArray(data.orders) ? data.orders : Array.isArray(data) ? data : [];
 
       // Orders where this table participates
       const tableOrders = list.filter((order) => {
         const t = order.table_no || "";
-        return t === table_no || t.includes(table_no);
+        return t === table_no || (typeof t === "string" && t.includes(table_no));
       });
 
-      const active = tableOrders.filter((o) =>
-        ["PENDING", "PREPARING", "READY"].includes(o.status)
-      );
-      const history = tableOrders.filter((o) =>
-        ["SERVED", "COMPLETED", "CANCELLED"].includes(o.status)
-      );
+      // If backend marked session closed for this table, clear UI and stop further polling
+      const hasSessionClosed = tableOrders.some((o) => (o.status || "").toString().toUpperCase() === "SESSION_CLOSED");
+      if (hasSessionClosed) {
+        setActiveOrders([]);
+        setOrderHistory([]);
+        setHalfSessions([]);
+        setSessionClosed(true);
+        setLoading(false);
+        return;
+      }
+
+      const active = tableOrders.filter((o) => ["PENDING", "PREPARING", "READY"].includes((o.status || "").toString().toUpperCase()));
+      const history = tableOrders.filter((o) => ["SERVED", "COMPLETED", "CANCELLED"].includes((o.status || "").toString().toUpperCase()));
 
       setActiveOrders(active);
       setOrderHistory(history);
@@ -233,15 +222,17 @@ const CustomerDashboard = () => {
     fetchOrders();
     fetchHalfSessions();
 
-    // Poll orders + sessions for real-time updates
+    // Poll orders + sessions for real-time updates (skip polling when session closed)
     const interval = setInterval(() => {
-      fetchOrders();
-      fetchHalfSessions();
+      if (!sessionClosed) {
+        fetchOrders();
+        fetchHalfSessions();
+      }
     }, 8000);
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurant_id, table_no]);
+  }, [restaurant_id, table_no, sessionClosed]);
 
   // Optional WebSocket (if you already have one for other pages)
   useEffect(() => {
@@ -254,12 +245,38 @@ const CustomerDashboard = () => {
       ws.onopen = () => console.log("Customer WS connected");
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (
-          msg.type === "order.status_updated" ||
-          msg.type === "order.created" ||
-          msg.type === "session.created" ||
-          msg.type === "session.joined"
-        ) {
+
+        // If backend signals session cleared for this table, reset UI to clean state
+        if (msg.type === "table_session_cleared" || msg.type === "session.cleared" || msg.type === "session.expired") {
+          // Only act if this event targets our table or includes tables list
+          const targetTables = msg.data?.tables || (msg.data?.table_no ? [msg.data.table_no] : []);
+          const shouldClear = !targetTables || targetTables.length === 0 || 
+            targetTables.includes(table_no) || 
+            targetTables.some(t => table_no.includes(t) || t.includes(table_no));
+          
+          if (shouldClear) {
+            setActiveOrders([]);
+            setOrderHistory([]);
+            setHalfSessions([]);
+            setSessionClosed(true);
+          }
+          return;
+        }
+
+        // If a new order is created at this table while session was closed, reopen view
+        if (msg.type === "order.created") {
+          const tno = msg.data?.table_no || msg.table_no || "";
+          if (tno && (tno === table_no || tno.includes(table_no))) {
+            // New order for our table -> reset sessionClosed and fetch
+            if (sessionClosed) setSessionClosed(false);
+            fetchOrders();
+            fetchHalfSessions();
+            return;
+          }
+        }
+
+        // For other relevant updates, refresh only when session is not closed
+        if (!sessionClosed && (msg.type === "order.status_updated" || msg.type === "session.created" || msg.type === "session.joined")) {
           fetchOrders();
           fetchHalfSessions();
         }
@@ -271,7 +288,7 @@ const CustomerDashboard = () => {
     } catch (err) {
       console.error("WS init error:", err);
     }
-  }, [restaurant_id, table_no]);
+  }, [restaurant_id, table_no, sessionClosed]);
 
   /* ---------------- Loading ---------------- */
 
@@ -647,7 +664,7 @@ const CustomerDashboard = () => {
         )}
 
         {/* Order History */}
-        {orderHistory.length > 0 && (
+        {orderHistory.length > 0 && !sessionClosed && (
           <section className="pb-6 space-y-3">
             <div className="flex items-center justify-between">
               <h2
@@ -657,24 +674,7 @@ const CustomerDashboard = () => {
               >
                 Order History
               </h2>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500">Period</label>
-                <select
-                  value={historyPeriod}
-                  onChange={(e) => {
-                    setHistoryPeriod(e.target.value);
-                    // refetch orders with new period
-                    setLoading(true);
-                    fetchOrders();
-                  }}
-                  className="px-2 py-1 rounded border bg-white text-sm"
-                >
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="3months">Last 3 Months</option>
-                </select>
-              </div>
+              <div />
             </div>
             <div className="space-y-3">
               {orderHistory.map((order) => {

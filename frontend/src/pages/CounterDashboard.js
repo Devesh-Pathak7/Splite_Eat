@@ -43,12 +43,34 @@ import {
   Edit,
   Trash2,
   Clock,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 import { formatCurrency, getItemTypeIndicator } from "../utils/helpers";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
 const DEFAULT_PAGE_SIZE = 100;
+
+/** Status mapping for user-friendly labels and colors */
+const STATUS_CONFIG = {
+  PENDING: { label: "Pending", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200" },
+  PREPARING: { label: "Preparing", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200" },
+  READY: { label: "Ready", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200" },
+  SERVED: { label: "Served", color: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200" },
+  COMPLETED: { label: "Completed", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" },
+  CANCELLED: { label: "Cancelled", color: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200" },
+  SESSION_CLOSED: { label: "Session Closed", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200" },
+};
+
+/** Get status display info, with fallback for unknown statuses */
+const getStatusInfo = (status) => {
+  const normalizedStatus = (status || "").toString().toUpperCase();
+  return STATUS_CONFIG[normalizedStatus] || {
+    label: normalizedStatus || "Other",
+    color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+  };
+};
 
 /** Normalize table/session key for grouping */
 const normalizeTableKey = (raw) => {
@@ -234,8 +256,9 @@ const CounterDashboardContent = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [tables, setTables] = useState([]);
 
-  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [clearingTables, setClearingTables] = useState(new Set()); // Track tables being cleared
   const [showAddTable, setShowAddTable] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
   const [newMenuItem, setNewMenuItem] = useState({
@@ -257,6 +280,7 @@ const CounterDashboardContent = () => {
   const [historyPeriod, setHistoryPeriod] = useState("today");
   const [historyOrderType, setHistoryOrderType] = useState("all");
   const [tabValue, setTabValue] = useState("orders");
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   /* ---------------------- Initial fetch ---------------------- */
 
@@ -265,6 +289,7 @@ const CounterDashboardContent = () => {
       fetchOrders();
       fetchMenu();
       fetchTables();
+      fetchSoundSettings();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -280,6 +305,7 @@ const CounterDashboardContent = () => {
   useEffect(() => {
     if (!lastMessage) return;
     const type = lastMessage.type || lastMessage.event || "";
+    const data = lastMessage.data || {};
 
     if (
       type.includes("order") ||
@@ -293,6 +319,11 @@ const CounterDashboardContent = () => {
       if (tabValue === "history") {
         fetchHistoryOrders();
       }
+    }
+
+    // Play sound ONLY for new orders, not status updates
+    if (type === "order.created") {
+      playNewOrderSound();
     }
   }, [lastMessage, tabValue]);
 
@@ -478,6 +509,83 @@ const resp = await axios.get(
     }
   };
 
+  const fetchSoundSettings = async () => {
+    // Use localStorage for sound settings
+    const soundEnabled = localStorage.getItem("soundEnabled") !== "false";
+    setSoundEnabled(soundEnabled);
+  };
+
+  const updateSoundSettings = async (enabled) => {
+    // Store in localStorage
+    localStorage.setItem("soundEnabled", enabled.toString());
+    setSoundEnabled(enabled);
+    toast.success(`Sound notifications ${enabled ? 'enabled' : 'disabled'}`);
+  };
+
+  const playNewOrderSound = () => {
+    if (!soundEnabled) return;
+    
+    try {
+      // Create a simple beep sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz beep
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+      console.error("Error playing sound:", error);
+    }
+  };
+
+  const closeTableSession = async (tableNo) => {
+    // Prevent duplicate requests
+    if (clearingTables.has(tableNo)) {
+      return;
+    }
+
+    try {
+      setClearingTables(prev => new Set(prev).add(tableNo));
+      const headers = getAuthHeaders();
+      await axios.post(`${API_URL}/api/counter/close-session/${encodeURIComponent(tableNo)}`, {}, { headers });
+
+      // Immediately remove completed orders from this table/session from active view
+      setOrders(prevOrders =>
+        prevOrders.filter(order => {
+          const orderTable = normalizeTableKey(order.table_no || order.table || order.tableNo || "unassigned");
+          const sessionTable = normalizeTableKey(tableNo);
+
+          // Keep the order if it's not from this table/session, or if it's not completed
+          if (orderTable !== sessionTable) return true;
+          const status = (order.status || "").toString().toUpperCase();
+          return status !== "COMPLETED"; // Remove only completed orders from this session
+        })
+      );
+
+      toast.success("Table cleared for new customers");
+      fetchTables(); // Refresh table status
+    } catch (error) {
+      console.error("closeTableSession error:", error);
+      const errorMessage = error.response?.data?.detail || "Failed to clear table";
+      toast.error(errorMessage);
+    } finally {
+      setClearingTables(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tableNo);
+        return newSet;
+      });
+    }
+  };
+
   const addMenuItem = async () => {
     if (!user?.restaurant_id) return;
     try {
@@ -595,7 +703,7 @@ const resp = await axios.get(
 
   const activeOrders = (orders || []).filter((o) => {
     const s = (o.status || "").toString().toUpperCase();
-    return s !== "COMPLETED" && s !== "CANCELLED";
+    return s !== "CANCELLED"; // Include COMPLETED orders in active view until cleared
   });
 
   const groupedActive = useMemo(
@@ -671,6 +779,17 @@ const resp = await axios.get(
             </p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => updateSoundSettings(!soundEnabled)}
+              className="p-3 rounded-full bg-white/70 dark:bg-gray-700/70 backdrop-blur-md shadow-md hover:shadow-lg transition-all"
+              title={soundEnabled ? "Disable new order sound" : "Enable new order sound"}
+            >
+              {soundEnabled ? (
+                <Volume2 className="w-5 h-5 text-green-500" />
+              ) : (
+                <VolumeX className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
             <button
               onClick={toggleTheme}
               className="p-3 rounded-full bg-white/70 dark:bg-gray-700/70 backdrop-blur-md shadow-md hover:shadow-lg transition-all"
@@ -906,9 +1025,9 @@ const resp = await axios.get(
                           </span>
                           <Badge
                             variant="outline"
-                            className="text-[10px] uppercase tracking-wide"
+                            className={`text-[10px] uppercase tracking-wide ${getStatusInfo(ord.status).color}`}
                           >
-                            {(ord.status || "").toString()}
+                            {getStatusInfo(ord.status).label}
                           </Badge>
                         </div>
 
@@ -1015,19 +1134,23 @@ const resp = await axios.get(
                               Complete
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="h-8 px-3 text-xs"
-                            onClick={() =>
-                              updateOrderStatus(
-                                ord.id || ord.order_id,
-                                "CANCELLED"
-                              )
-                            }
-                          >
-                            Cancel
-                          </Button>
+                          {["PENDING", "PREPARING", "READY", "SERVED"].includes(
+                            (ord.status || "").toString().toUpperCase()
+                          ) && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 px-3 text-xs"
+                              onClick={() =>
+                                updateOrderStatus(
+                                  ord.id || ord.order_id,
+                                  "CANCELLED"
+                                )
+                              }
+                            >
+                              Cancel
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1037,9 +1160,26 @@ const resp = await axios.get(
 
               {/* Bottom summary row */}
               <div className="flex justify-between items-center pt-3 mt-1 border-t border-gray-200 dark:border-gray-800">
-                <span className="text-xs font-medium text-gray-500">
-                  Total
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500">
+                    Total
+                  </span>
+                  {/* Clear Table button - only show if all orders are completed and user is counter_admin */}
+                  {group.orders.every(order => 
+                    (order.status || "").toString().toUpperCase() === "COMPLETED"
+                  ) && user?.role === "counter_admin" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-3 text-xs border-red-400 text-red-600 hover:bg-red-50 hover:border-red-500 font-medium"
+                      onClick={() => closeTableSession(group.key)}
+                      disabled={clearingTables.has(group.key)}
+                      title="Clear table and close session for new customers"
+                    >
+                      {clearingTables.has(group.key) ? "Clearing..." : "🧹 Clear Table"}
+                    </Button>
+                  )}
+                </div>
                 <span className="text-lg font-semibold text-orange-600 dark:text-amber-500">
                   {formatCurrency(groupTotal)}
                 </span>

@@ -9,7 +9,7 @@ import logging
 
 from models import (
     Order, PairedOrder, HalfOrderSession, User, MenuItem,
-    OrderStatus, PairedOrderStatus, HalfOrderStatus, utc_now
+    PairedOrderStatus, HalfOrderStatus, OrderStatus, utc_now
 )
 from services.audit_service import log_audit
 
@@ -85,7 +85,7 @@ class OrderService:
             phone=phone,
             items=items_json,
             total_amount=total_amount,
-            status=OrderStatus.PENDING,
+            status="PENDING",
             created_at=utc_now()
         )
         
@@ -144,7 +144,7 @@ class OrderService:
         
         return {
             "order_id": order.id,
-            "status": order.status.value,
+            "status": order.status,
             "total_amount": total_amount,
             "paired_orders_completed": completed_paired,
             "created_at": order.created_at.isoformat()
@@ -154,7 +154,7 @@ class OrderService:
     async def update_order_status(
         db: AsyncSession,
         order_id: int,
-        new_status: OrderStatus,
+        new_status: str,
         current_user: User,
         ip_address: Optional[str] = None
     ) -> Order:
@@ -170,10 +170,10 @@ class OrderService:
         
         old_status = order.status
         order.status = new_status
-        
+
         # If order moved to COMPLETED, ensure any related PairedOrder rows
         # are marked COMPLETED and their HalfOrderSession rows are also updated.
-        if new_status == OrderStatus.COMPLETED:
+        if (isinstance(new_status, str) and new_status.upper() == "COMPLETED") or (hasattr(new_status, 'name') and new_status.name == 'COMPLETED'):
             try:
                 result = await db.execute(
                     select(PairedOrder).where(PairedOrder.order_id == order_id)
@@ -196,7 +196,10 @@ class OrderService:
             except Exception:
                 logger.exception("Failed to update paired orders on order completion")
 
-        # Log audit
+        # Log audit (use plain strings, safe fallback)
+        old_status_str = old_status if isinstance(old_status, str) else getattr(old_status, 'name', str(old_status))
+        new_status_str = new_status if isinstance(new_status, str) else getattr(new_status, 'name', str(new_status))
+
         await log_audit(
             db=db,
             user=current_user,
@@ -204,13 +207,13 @@ class OrderService:
             resource_type="order",
             resource_id=str(order_id),
             meta={
-                "old_status": old_status.value,
-                "new_status": new_status.value
+                "old_status": old_status_str,
+                "new_status": new_status_str
             },
             ip_address=ip_address
         )
         
-        logger.info(f"Order {order_id} status: {old_status.value} -> {new_status.value}")
+        logger.info(f"Order {order_id} status: {old_status_str} -> {new_status_str}")
         
         return order
     
@@ -236,8 +239,8 @@ class OrderService:
         
         order.sent_to_kitchen_at = utc_now()
         order.sent_to_kitchen_by = current_user.id
-        order.status = OrderStatus.PREPARING
-        
+        order.status = "PREPARING"
+
         # Log audit
         await log_audit(
             db=db,
@@ -248,9 +251,9 @@ class OrderService:
             meta={"sent_at": order.sent_to_kitchen_at.isoformat()},
             ip_address=ip_address
         )
-        
+
         logger.info(f"Order {order_id} sent to kitchen by {current_user.username}")
-        
+
         return order
     
     @staticmethod
@@ -271,14 +274,14 @@ class OrderService:
         if not order:
             raise ValueError("Order not found")
         
-        if order.status in [OrderStatus.SERVED, OrderStatus.COMPLETED]:
-            raise ValueError(f"Cannot cancel order with status: {order.status.value}")
+        if (order.status or '').upper() in ["SERVED", "COMPLETED"]:
+            raise ValueError(f"Cannot cancel order with status: {order.status}")
         
         # Check permissions
         if current_user.role.value not in ['super_admin', 'counter_admin']:
             raise PermissionError("Only admin can cancel orders")
         
-        order.status = OrderStatus.CANCELLED
+        order.status = "CANCELLED"
         order.cancelled_at = utc_now()
         order.cancelled_by = current_user.id
         order.cancel_reason = reason
@@ -315,14 +318,14 @@ class OrderService:
         if not order:
             raise ValueError("Order not found")
         
-        if order.status != OrderStatus.CANCELLED:
+        if (order.status or '').upper() != "CANCELLED":
             raise ValueError("Only cancelled orders can be reopened")
         
         # Check permissions
         if current_user.role.value not in ['super_admin', 'counter_admin']:
             raise PermissionError("Only admin can reopen orders")
         
-        order.status = OrderStatus.PENDING
+        order.status = "PENDING"
         order.cancelled_at = None
         order.cancelled_by = None
         order.cancel_reason = None

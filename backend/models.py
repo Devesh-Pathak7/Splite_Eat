@@ -30,6 +30,7 @@ class OrderStatus(str, enum.Enum):
     SERVED = "SERVED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+    SESSION_CLOSED = "SESSION_CLOSED"
 
 class HalfOrderStatus(str, enum.Enum):
     ACTIVE = "ACTIVE"
@@ -68,6 +69,11 @@ class PairedOrderStatus(str, enum.Enum):
     PENDING = "PENDING"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+
+class TableStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    OCCUPIED = "OCCUPIED"
+    RESERVED = "RESERVED"
 
 class User(Base):
     __tablename__ = "users"
@@ -158,7 +164,7 @@ class Order(Base):
     phone = Column(String(20))
     items = Column(Text)  # JSON string of items
     total_amount = Column(Float, nullable=False)
-    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    status = Column(String(32), nullable=False, default='PENDING')
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     sent_to_kitchen_at = Column(DateTime(timezone=True), nullable=True)
     sent_to_kitchen_by = Column(Integer, nullable=True)

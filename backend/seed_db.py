@@ -139,7 +139,7 @@ async def seed_database():
                 phone="9876543210",
                 items='[{"menu_item_id": 1, "name": "Margherita Pizza", "quantity": 1, "price": 449.00}]',
                 total_amount=449.00,
-                status=OrderStatus.PENDING
+                status="PENDING"
             )
             session.add(sample_order)
             await session.commit()
