@@ -450,7 +450,7 @@ export default function MenuPageProduction() {
             </div>
 
             <div className="flex gap-3 items-center">
-              <button onClick={() => navigate(`/my-orders/${restaurant_id}/${table_no}`)} className="hidden sm:inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow hover:bg-blue-700 transition">My Orders</button>
+              <button onClick={() => navigate(`/my-orders/${restaurant_id}/${table_no}`)} className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow hover:bg-blue-700 transition">My Orders</button>
               <button onClick={() => setShowCart(!showCart)} className="relative p-2 rounded-xl hover:bg-orange-100/10 transition"><ShoppingCart size={26} className="text-orange-500" />{totalItems>0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">{totalItems}</span>}</button>
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-xl hover:bg-orange-100/10 transition">{isDarkMode ? <Sun size={20} className="text-white"/> : <Moon size={20} className="text-gray-800"/>}</button>
             </div>

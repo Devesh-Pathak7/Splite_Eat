@@ -98,10 +98,44 @@ const parseItems = (raw) => {
   return [];
 };
 
+/**
+ * Parse incoming timestamp robustly.
+ * If value is an ISO string without timezone (e.g. "2025-12-24T00:30:00"),
+ * treat it as UTC by appending a 'Z'. This avoids double-localization issues
+ * where Date() interprets the string as local time.
+ */
+const parseToDate = (value) => {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+  if (typeof value === "number") return new Date(value);
+  if (typeof value === "string") {
+    // ISO-like without timezone: YYYY-MM-DDTHH:MM:SS(.sss)
+    const isoNoTz = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+    // DB style: YYYY-MM-DD HH:MM:SS(.sss) (space separator) - treat as UTC
+    const dbSpace = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+    if (isoNoTz.test(value)) {
+      try {
+        return new Date(value + "Z"); // treat as UTC
+      } catch {
+        return new Date(value);
+      }
+    }
+    if (dbSpace.test(value)) {
+      try {
+        return new Date(value.replace(" ", "T") + "Z");
+      } catch {
+        return new Date(value);
+      }
+    }
+    return new Date(value);
+  }
+  return new Date();
+};
+
 /** Format IST date/time display */
 const formatDateTimeIST = (value) => {
   try {
-    const date = new Date(value);
+    const date = parseToDate(value);
     const dateStr = date.toLocaleDateString("en-IN", {
       timeZone: "Asia/Kolkata",
       day: "2-digit",
@@ -126,7 +160,7 @@ const formatDateTimeIST = (value) => {
 
 /** Order title: same-day -> yyyymmdd-id */
 const orderDisplayLabel = (order) => {
-  const created = new Date(order.created_at || order.createdAt || order.timestamp || Date.now());
+  const created = parseToDate(order.created_at || order.createdAt || order.timestamp || Date.now());
   const createdIST = new Date(
     created.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
   );
@@ -219,8 +253,10 @@ const CounterDashboardContent = () => {
     capacity: 4,
   });
 
-  const [historyPeriod, setHistoryPeriod] = useState("month");
+  const [historyOrders, setHistoryOrders] = useState([]);
+  const [historyPeriod, setHistoryPeriod] = useState("today");
   const [historyOrderType, setHistoryOrderType] = useState("all");
+  const [tabValue, setTabValue] = useState("orders");
 
   /* ---------------------- Initial fetch ---------------------- */
 
@@ -233,6 +269,12 @@ const CounterDashboardContent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  useEffect(() => {
+    if (tabValue === "history") {
+      fetchHistoryOrders();
+    }
+  }, [historyPeriod, historyOrderType, tabValue]);
+
   /* ---------------------- WebSocket live refresh ---------------------- */
 
   useEffect(() => {
@@ -242,13 +284,17 @@ const CounterDashboardContent = () => {
     if (
       type.includes("order") ||
       type.includes("session") ||
-      type.includes("half")
+      type.includes("half") ||
+      type.includes("table")
     ) {
       fetchOrders();
       fetchMenu();
       fetchTables();
+      if (tabValue === "history") {
+        fetchHistoryOrders();
+      }
     }
-  }, [lastMessage]);
+  }, [lastMessage, tabValue]);
 
   /* ---------------------- API calls ---------------------- */
 
@@ -293,6 +339,12 @@ const CounterDashboardContent = () => {
     } catch (error) {
       console.error("fetchOrders error:", error);
       setOrders([]);
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        toast.error("Authentication required — please login.");
+        navigate('/login');
+        return;
+      }
       toast.error("Unable to fetch orders. Please check server connectivity.");
     }
   };
@@ -301,10 +353,11 @@ const CounterDashboardContent = () => {
     if (!user?.restaurant_id) return;
     try {
       const headers = getAuthHeaders();
-      const resp = await axios.get(
-        `${API_URL}/api/restaurants/${Number(user.restaurant_id)}/menu`,
-        { headers }
-      );
+const resp = await axios.get(
+  `${API_URL}/api/restaurants/${Number(user.restaurant_id)}/menu`,
+  { headers }
+);
+
       const data = resp.data;
       if (Array.isArray(data)) setMenuItems(data);
       else if (Array.isArray(data.menu)) setMenuItems(data.menu);
@@ -317,6 +370,12 @@ const CounterDashboardContent = () => {
     } catch (error) {
       console.error("fetchMenu error:", error);
       setMenuItems([]);
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        toast.error("Authentication required — please login.");
+        navigate('/login');
+        return;
+      }
       toast.error("Unable to fetch menu.");
     }
   };
@@ -325,10 +384,11 @@ const CounterDashboardContent = () => {
     if (!user?.restaurant_id) return;
     try {
       const headers = getAuthHeaders();
-      const resp = await axios.get(
-        `${API_URL}/api/restaurants/${Number(user.restaurant_id)}/tables`,
-        { headers }
-      );
+      // Use counter endpoint which returns computed statuses (AVAILABLE/OCCUPIED/RESERVED)
+      const resp = await axios.get(`${API_URL}/api/counter/tables`, {
+        headers,
+        params: { restaurant_id: Number(user.restaurant_id) },
+      });
       const data = resp.data;
       if (Array.isArray(data)) setTables(data);
       else if (Array.isArray(data.tables)) setTables(data.tables);
@@ -341,7 +401,63 @@ const CounterDashboardContent = () => {
     } catch (error) {
       console.error("fetchTables error:", error);
       setTables([]);
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        toast.error("Authentication required — please login.");
+        navigate('/login');
+        return;
+      }
       toast.error("Unable to fetch tables.");
+    }
+  };
+
+  const fetchHistoryOrders = async () => {
+    if (!user?.restaurant_id) {
+      setHistoryOrders([]);
+      return;
+    }
+    try {
+      const headers = getAuthHeaders();
+      let params = {
+        restaurant_id: Number(user.restaurant_id),
+        type: historyOrderType,
+        page: 1,
+        page_size: 100, // Fetch more for history
+      };
+
+      if (historyPeriod === "month") {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        params.period = "custom";
+        params.start_date = startOfMonth.toISOString().split('T')[0];
+        params.end_date = now.toISOString().split('T')[0];
+      } else if (historyPeriod === "last_3_months") {
+        const now = new Date();
+        const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+        params.period = "custom";
+        params.start_date = threeMonthsAgo.toISOString().split('T')[0];
+        params.end_date = now.toISOString().split('T')[0];
+      } else {
+        params.period = historyPeriod;
+      }
+
+      const resp = await axios.get(`${API_URL}/api/orders/history`, {
+        headers,
+        params,
+      });
+      const data = resp.data;
+      if (Array.isArray(data.orders)) setHistoryOrders(data.orders);
+      else setHistoryOrders([]);
+    } catch (error) {
+      console.error("fetchHistoryOrders error:", error);
+      setHistoryOrders([]);
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        toast.error("Authentication required — please login.");
+        navigate('/login');
+        return;
+      }
+      toast.error("Unable to fetch order history.");
     }
   };
 
@@ -485,9 +601,10 @@ const CounterDashboardContent = () => {
   const groupedActive = useMemo(
     () =>
       activeOrders.reduce((acc, ord) => {
-        const key = normalizeTableKey(
-          ord.table_no || ord.table || ord.tableNo || "unassigned"
-        );
+        // Prefer grouping by S2 session token when available, fallback to table_no
+        const key = ord.session_token
+          ? ord.session_token
+          : normalizeTableKey(ord.table_no || ord.table || ord.tableNo || "unassigned");
         if (!acc[key]) acc[key] = [];
         acc[key].push(ord);
         return acc;
@@ -525,41 +642,15 @@ const CounterDashboardContent = () => {
     return { totalGroups, totalOrders, totalAmount, dateStr, dayStr, timeStr };
   }, [groupedActive, activeOrders]);
 
-  /* ---------------------- History filtered (IST-aware) ---------------------- */
-
   const filteredHistoryOrders = useMemo(() => {
-    const { start, end } = getTimeRangeDates(historyPeriod);
-    const lower = start.getTime();
-    const upper = end.getTime();
-
-    return (orders || [])
-      .filter((o) => {
-        const raw = o.created_at || o.createdAt || o.timestamp || Date.now();
-
-        const createdUTC = new Date(raw);
-        const createdIST = new Date(
-          createdUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-        ).getTime();
-
-        if (createdIST < lower || createdIST > upper) return false;
-
-        if (historyOrderType === "all") return true;
-
-        const isHalf =
-          ((o.table_no || "").toString().includes("+")) ||
-          !!o.is_half ||
-          !!o.half_order;
-
-        if (historyOrderType === "half") return isHalf;
-        if (historyOrderType === "full") return !isHalf;
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.created_at || b.createdAt || b.timestamp || 0) -
-          new Date(a.created_at || a.createdAt || a.timestamp || 0)
-      );
-  }, [orders, historyPeriod, historyOrderType]);
+    if (!historyOrders) return [];
+    if (historyOrderType === "all") return historyOrders;
+    return historyOrders.filter((order) => {
+      if (historyOrderType === "half") return order.order_type === "Half";
+      if (historyOrderType === "full") return order.order_type === "Full";
+      return true;
+    });
+  }, [historyOrders, historyOrderType]);
 
   /* ---------------------- UI rendering ---------------------- */
 
@@ -604,7 +695,7 @@ const CounterDashboardContent = () => {
 
       {/* Body */}
       <div className="max-w-7xl mx-auto px-6 py-6 lg:px-8 lg:py-8">
-        <Tabs defaultValue="orders" className="space-y-6">
+        <Tabs value={tabValue} onValueChange={(v) => setTabValue(v)} className="space-y-6">
           <TabsList className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl p-1 rounded-xl">
             <TabsTrigger value="orders">
               <ShoppingBag className="w-4 h-4 mr-2" />
@@ -699,12 +790,7 @@ const CounterDashboardContent = () => {
         const waitingTime = Math.max(
           0,
           Math.floor(
-            (Date.now() -
-              new Date(
-                firstOrder.created_at ||
-                  firstOrder.createdAt ||
-                  Date.now()
-              )) / 60000
+            (Date.now() - parseToDate(firstOrder.created_at || firstOrder.createdAt || firstOrder.timestamp || Date.now())) / 60000
           )
         );
 
@@ -733,10 +819,18 @@ const CounterDashboardContent = () => {
                     {displayLabel}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                    {formattedTableLabel} • Waiting {waitingTime}m •{" "}
-                    {firstOrder.customer_name ||
-                      firstOrder.customer ||
-                      "Guest"}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const name = firstOrder.customer_name || firstOrder.customer || "Guest";
+                        setHistoryPeriod("today");
+                        setHistoryCustomerFilter(name || null);
+                        setTabValue("history");
+                      }}
+                      className="text-left text-sm text-gray-600 dark:text-gray-300 hover:underline"
+                    >
+                      {firstOrder.customer_name || firstOrder.customer || "Guest"}
+                    </button>
                   </div>
                 </div>
                 <Badge className="px-3 py-1 text-xs font-semibold rounded-full">
@@ -820,17 +914,17 @@ const CounterDashboardContent = () => {
                               return (
                                 <div
                                   key={idx}
-                                  className="flex justify-between gap-2"
+                                  className="flex justify-between gap-3 items-start"
                                 >
-                                  <span className="truncate">
-                                    {it.name} × {qty}
+                                  <span className="flex-1">
+                                    {it.name} <span className="font-semibold">×{qty}</span>
                                     {it.type === "paired" && (
                                       <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200">
                                         Half Order
                                       </span>
                                     )}
                                   </span>
-                                  <span className="flex-shrink-0 text-xs font-medium text-gray-800 dark:text-gray-100">
+                                  <span className="flex-shrink-0 text-xs font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">
                                     {formatCurrency(linePrice)}
                                   </span>
                                 </div>
@@ -938,7 +1032,7 @@ const CounterDashboardContent = () => {
               {/* Bottom summary row */}
               <div className="flex justify-between items-center pt-3 mt-1 border-t border-gray-200 dark:border-gray-800">
                 <span className="text-xs font-medium text-gray-500">
-                  Session Total
+                  Total
                 </span>
                 <span className="text-lg font-semibold text-orange-600 dark:text-amber-500">
                   {formatCurrency(groupTotal)}
@@ -1092,7 +1186,7 @@ const CounterDashboardContent = () => {
                   View past orders by time range and type (Half / Full).
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2">
                   <Label>Period</Label>
                   <Select
@@ -1104,9 +1198,9 @@ const CounterDashboardContent = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="week">This Week</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="quarter">Last 3 Months</SelectItem>
+                      <SelectItem value="this_week">This Week</SelectItem>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="last_3_months">Last 3 Months</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1143,81 +1237,30 @@ const CounterDashboardContent = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredHistoryOrders.map((ord) => {
-                const isHalf =
-                  ((ord.table_no || "").toString().includes("+")) ||
-                  !!ord.is_half ||
-                  !!ord.half_order;
-                const formattedLabel = isHalf
-                  ? formatHalfOrderLabel(ord.table_no || "")
-                  : `Table ${ord.table_no || ord.table || "—"}`;
-                const createdAt =
-                  ord.created_at || ord.createdAt || ord.timestamp || Date.now();
-                const { dateStr, timeStr, dayStr } =
-                  formatDateTimeIST(createdAt);
-                const rawItems =
-                  ord.items ||
-                  ord.order_items ||
-                  ord.cart_items ||
-                  ord.line_items ||
-                  [];
-                const items = parseItems(rawItems);
+                const completedAt = ord.completed_at;
+                const { dateStr, timeStr, dayStr } = formatDateTimeIST(completedAt);
 
                 return (
                   <Card
-                    key={`hist-${ord.id || ord.order_id || Math.random()}`}
+                    key={`hist-${ord.order_id}`}
                     className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-2xl"
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="flex justify-between items-center">
                         <span>
-                          #{ord.id || ord.order_id || "—"} •{" "}
-                          {formatCurrency(
-                            ord.total_amount || ord.total || ord.amount || 0
-                          )}
+                          #{ord.order_id} • {formatCurrency(ord.total_amount)}
                         </span>
-                        <Badge>{ord.status || "UNKNOWN"}</Badge>
+                        <Badge>{ord.order_type}</Badge>
                       </CardTitle>
                       <CardDescription>
                         <div className="text-sm">
-                          {formattedLabel} •{" "}
-                          {ord.customer_name ||
-                            ord.customer ||
-                            ord.user_name ||
-                            "Guest"}
+                          {ord.table_reference}
                         </div>
                         <div className="text-xs text-gray-500">
                           {dayStr} {dateStr} • {timeStr} IST
                         </div>
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="pt-0 pb-4 px-4">
-                      <div className="text-sm space-y-1">
-                        {Array.isArray(items) && items.length > 0 ? (
-                          items.slice(0, 4).map((it, i) => (
-                            <div key={i} className="flex justify-between">
-                              <div>
-                                {it.name || it.item_name || "Item"}
-                                {it.type === "paired" && (
-                                  <span className="text-[11px] ml-2 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                                    Half Order
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-sm font-semibold">
-                                {formatCurrency(
-                                  (it.price || it.unit_price || 0) *
-                                    (it.quantity || it.qty || 1)
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-xs text-gray-500">
-                            No item details.
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
                   </Card>
                 );
               })}

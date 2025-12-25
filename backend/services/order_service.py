@@ -113,6 +113,12 @@ class OrderService:
                 "menu_item": paired_order.menu_item_name,
                 "price": paired_order.total_price
             })
+
+        # Ensure updates are flushed so they are visible before returning
+        try:
+            await db.flush()
+        except Exception:
+            logger.exception("Failed to flush DB after completing paired orders")
         
         # Log audit
         await log_audit(
@@ -165,6 +171,31 @@ class OrderService:
         old_status = order.status
         order.status = new_status
         
+        # If order moved to COMPLETED, ensure any related PairedOrder rows
+        # are marked COMPLETED and their HalfOrderSession rows are also updated.
+        if new_status == OrderStatus.COMPLETED:
+            try:
+                result = await db.execute(
+                    select(PairedOrder).where(PairedOrder.order_id == order_id)
+                )
+                paired_rows = result.scalars().all()
+                for paired in paired_rows:
+                    paired.status = PairedOrderStatus.COMPLETED
+                    paired.completed_at = utc_now()
+                    logger.info(f"Marking PairedOrder {paired.id} completed for order {order_id}")
+                    # update linked half-order sessions
+                    for session_id in [paired.half_session_a, paired.half_session_b]:
+                        session_result = await db.execute(
+                            select(HalfOrderSession).where(HalfOrderSession.id == session_id)
+                        )
+                        session = session_result.scalar_one_or_none()
+                        if session:
+                            session.status = HalfOrderStatus.COMPLETED
+                # flush so changes are persisted when outer transaction commits
+                await db.flush()
+            except Exception:
+                logger.exception("Failed to update paired orders on order completion")
+
         # Log audit
         await log_audit(
             db=db,

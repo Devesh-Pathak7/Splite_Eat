@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { ArrowLeft, Moon, Sun, DollarSign, ShoppingBag, Users, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, ShoppingBag, Users, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -22,6 +22,7 @@ const AnalyticsPage = () => {
   const [selectedRestaurant, setSelectedRestaurant] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [timeRange, setTimeRange] = useState('this_month');
   const [overview, setOverview] = useState({ 
     total_revenue: 0, 
     total_orders: 0, 
@@ -35,11 +36,17 @@ const AnalyticsPage = () => {
   useEffect(() => {
     fetchRestaurants();
     fetchAnalytics();
-  }, [selectedRestaurant]);
+  }, []);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [selectedRestaurant, timeRange]);
 
   const fetchRestaurants = async () => {
     try {
-      const response = await axios.get(`${API_URL}/restaurants`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_URL}/restaurants`, { headers });
       setRestaurants(response.data);
     } catch (error) {
       console.error('Failed to load restaurants');
@@ -50,11 +57,43 @@ const AnalyticsPage = () => {
     try {
       const params = {};
       if (selectedRestaurant !== 'all') params.restaurant_id = selectedRestaurant;
-      if (startDate) params.start_date = startDate;
-      if (endDate) params.end_date = endDate;
+      // derive start/end from selected timeRange
+      const now = new Date();
+      let start = null;
+      let end = new Date(now);
+      if (timeRange === 'today') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (timeRange === 'this_week') {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(now.getFullYear(), now.getMonth(), diff);
+      } else if (timeRange === 'this_month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (timeRange === 'last_3_months') {
+        start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      }
+      if (start) {
+        // send dates in YYYY-MM-DD to remain compatible with backend.fromisoformat
+        params.start_date = start.toISOString().slice(0, 10);
+        params.end_date = end.toISOString().slice(0, 10);
+      }
       
-      const overviewResponse = await axios.get(`${API_URL}/analytics/super-admin-overview`, { params });
-      setOverview(overviewResponse.data);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const overviewResponse = await axios.get(`${API_URL}/analytics/super-admin-overview`, { params, headers });
+      // Merge with defaults so missing keys don't render as empty
+      const defaults = {
+        total_revenue: 0,
+        total_orders: 0,
+        active_half_orders: 0,
+        average_order_value: 0,
+        total_customers: 0,
+        half_half_joined: 0,
+        half_half_commission: 0,
+        top_restaurants: [],
+        all_restaurants: []
+      };
+      setOverview({ ...defaults, ...(overviewResponse.data || {}) });
 
       const popularResponse = await axios.get(`${API_URL}/analytics/popular-items`, { params: { ...params, limit: 10 } });
       setPopularItems(popularResponse.data);
@@ -65,6 +104,29 @@ const AnalyticsPage = () => {
   };
 
   const COLORS = ['#FF8C00', '#FFA733', '#FFB84D', '#FFC966', '#FFDA80', '#FFEB99', '#F97316', '#FB923C', '#FDBA74', '#FED7AA'];
+
+  // Customized tick to truncate long labels, rotate them and provide full name as title
+  const CustomizedTick = ({ x, y, payload }) => {
+    const MAX = 14;
+    const name = payload.value || '';
+    const display = name.length > MAX ? name.slice(0, MAX - 1) + '…' : name;
+    // position group at tick coordinate and rotate label to avoid overlap
+    return (
+      <g transform={`translate(${x}, ${y + 12})`}>
+        <title>{name}</title>
+        <text
+          x={0}
+          y={0}
+          transform="rotate(-35)"
+          textAnchor="end"
+          fill={isDarkMode ? '#9CA3AF' : '#6B7280'}
+          fontSize={12}
+        >
+          {display}
+        </text>
+      </g>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 transition-colors duration-500">
@@ -101,20 +163,17 @@ const AnalyticsPage = () => {
               ))}
             </SelectContent>
           </Select>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="sm:w-48 bg-white/60 dark:bg-gray-700/60 backdrop-blur-md"
-            placeholder="Start Date"
-          />
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="sm:w-48 bg-white/60 dark:bg-gray-700/60 backdrop-blur-md"
-            placeholder="End Date"
-          />
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="sm:w-48 bg-white/60 dark:bg-gray-700/60 backdrop-blur-md">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="this_month">This Month</SelectItem>
+              <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             onClick={fetchAnalytics}
             className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700"
@@ -124,11 +183,10 @@ const AnalyticsPage = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="revenue-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Total Revenue</CardTitle>
-              <DollarSign className="w-5 h-5 text-orange-600 dark:text-amber-500" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-orange-600 dark:text-amber-500" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -172,6 +230,28 @@ const AnalyticsPage = () => {
               </div>
             </CardContent>
           </Card>
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="half-joined-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Half + Half Joined</CardTitle>
+              <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {overview.half_half_joined ?? 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-orange-200 dark:border-amber-700/30" data-testid="half-commission-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>Half + Half Commission</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                {formatCurrency(overview.half_half_commission ?? 0)}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Top Restaurants Section */}
@@ -211,9 +291,10 @@ const AnalyticsPage = () => {
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={popularItems}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: isDarkMode ? '#9CA3AF' : '#6B7280' }} />
+                  <XAxis dataKey="name" tick={<CustomizedTick />} interval={0} height={70} tickMargin={8} />
                   <YAxis tick={{ fill: isDarkMode ? '#9CA3AF' : '#6B7280' }} />
                   <Tooltip
+                    formatter={(value, name, props) => [value, props && props.payload ? props.payload.name : name]}
                     contentStyle={{
                       backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
                       border: 'none',
@@ -235,20 +316,23 @@ const AnalyticsPage = () => {
               <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                   <Pie
-                    data={popularItems.slice(0, 8)}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="count"
-                  >
+                      data={popularItems.slice(0, 8)}
+                      cx="40%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      innerRadius={40}
+                      paddingAngle={4}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
                     {popularItems.slice(0, 8).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
+                    formatter={(value, name, props) => [value, props && props.payload ? props.payload.name : name]}
                     contentStyle={{
                       backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
                       border: 'none',
@@ -256,6 +340,7 @@ const AnalyticsPage = () => {
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
                     }}
                   />
+                  <Legend verticalAlign="middle" align="right" layout="vertical" />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>

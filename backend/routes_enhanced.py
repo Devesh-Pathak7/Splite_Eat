@@ -11,10 +11,12 @@ from models import (
     User, Restaurant, MenuItem, HalfOrderSession, Order, AuditLog, ErrorLog,
     UserRole, HalfOrderStatus, OrderStatus, RestaurantType, MenuItemType, AuditAction
 )
+from models import PairedOrder, PairedOrderStatus
 from schemas import (
     OverrideLoginRequest, TokenResponse, UserResponse,
     AuditLogResponse, ErrorLogResponse, HalfOrderJoin, HalfOrderResponse
 )
+from schemas import UserCreate
 from auth import (
     create_access_token, get_current_user, require_role,
     log_audit, check_restaurant_access
@@ -201,17 +203,52 @@ async def get_super_admin_analytics(
     
     # Build query conditions
     conditions = []
-    
+
+    # Parse start/end once and make end_date inclusive for date-only input
+    start_dt = None
+    end_dt = None
+    if start_date:
+        # if time component present, respect it; otherwise assume start of day UTC
+        if 'T' in start_date:
+            start_dt = datetime.fromisoformat(start_date)
+        else:
+            start_dt = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
+
+    if end_date:
+        # if time component present, respect it; otherwise treat end as end-of-day UTC (inclusive)
+        if 'T' in end_date:
+            end_dt = datetime.fromisoformat(end_date)
+        else:
+            end_dt = datetime.fromisoformat(end_date)
+            end_dt = end_dt.replace(tzinfo=timezone.utc) + timedelta(days=1) - timedelta(microseconds=1)
+
+    # When comparing against SQL CONVERT_TZ(...) (which yields a naive DATETIME
+    # in the database's timezone), convert the parsed start/end datetimes to
+    # IST and strip tzinfo so the bound parameters are naive and comparable.
+    IST = timezone(timedelta(hours=5, minutes=30))
+    def _to_ist_naive(dt: Optional[datetime]):
+        if not dt:
+            return None
+        # Ensure we interpret the value as UTC when tzinfo is missing
+        if dt.tzinfo is None:
+            dt_utc = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt_utc = dt.astimezone(timezone.utc)
+        dt_ist = dt_utc.astimezone(IST)
+        return dt_ist.replace(tzinfo=None)
+
+    start_dt_ist = _to_ist_naive(start_dt)
+    end_dt_ist = _to_ist_naive(end_dt)
+
     if restaurant_id:
         conditions.append(Order.restaurant_id == restaurant_id)
-    
-    if start_date:
-        start = datetime.fromisoformat(start_date)
-        conditions.append(Order.created_at >= start)
-    
-    if end_date:
-        end = datetime.fromisoformat(end_date)
-        conditions.append(Order.created_at <= end)
+
+    if start_dt_ist:
+        # convert stored UTC timestamps to IST for filtering so frontend (IST) semantics match
+        conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') >= start_dt_ist)
+
+    if end_dt_ist:
+        conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') <= end_dt_ist)
     
     # Total revenue
     revenue_query = select(func.sum(Order.total_amount))
@@ -238,6 +275,44 @@ async def get_super_admin_analytics(
         half_orders_query = half_orders_query.where(HalfOrderSession.restaurant_id == restaurant_id)
     result = await db.execute(half_orders_query)
     active_half_orders = result.scalar() or 0
+
+    # Half+Half joined (paired orders completed)
+    paired_query = select(func.count(PairedOrder.id)).where(PairedOrder.status == PairedOrderStatus.COMPLETED)
+    if restaurant_id:
+        paired_query = paired_query.where(PairedOrder.restaurant_id == restaurant_id)
+    if start_dt_ist:
+        paired_query = paired_query.where(func.convert_tz(PairedOrder.completed_at, '+00:00', '+05:30') >= start_dt_ist)
+    if end_dt_ist:
+        paired_query = paired_query.where(func.convert_tz(PairedOrder.completed_at, '+00:00', '+05:30') <= end_dt_ist)
+    result = await db.execute(paired_query)
+    paired_count = int(result.scalar() or 0)
+
+    # Fallback / augmentation: count Orders that contain a half-order item
+    # and are completed (or served), but are not already represented in paired_orders (by order_id).
+    orders_paired_query = select(func.count(Order.id))
+    conds = [Order.items.like('%half_order%')]
+    # Only count orders that reached SERVED or COMPLETED
+    from models import OrderStatus as _OrderStatus  # local alias
+    conds.append(Order.status.in_([_OrderStatus.SERVED, _OrderStatus.COMPLETED]))
+    if restaurant_id:
+        conds.append(Order.restaurant_id == restaurant_id)
+    if start_dt_ist:
+        conds.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') >= start_dt_ist)
+    if end_dt_ist:
+        conds.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') <= end_dt_ist)
+
+    # Exclude any orders already referenced by PairedOrder.order_id
+    subq = select(PairedOrder.order_id).where(PairedOrder.order_id != None)
+    orders_paired_query = orders_paired_query.where(and_(*conds)).where(~Order.id.in_(subq))
+    result = await db.execute(orders_paired_query)
+    fallback_count = int(result.scalar() or 0)
+
+    # Total joined = paired table completed + completed orders fallback
+    half_half_joined = paired_count + fallback_count
+
+    # Half+Half commission: fixed per-join amount (in rupees), configurable via env var
+    PER_JOIN_RUPEES = float(os.getenv('HALF_ORDER_COMMISSION_RUPEES', '20'))
+    half_half_commission = float(half_half_joined * PER_JOIN_RUPEES)
     
     # Total customers served (unique customers)
     customers_query = select(func.count(func.distinct(Order.customer_name)))
@@ -289,10 +364,65 @@ async def get_super_admin_analytics(
         "total_orders": total_orders,
         "average_order_value": float(avg_order_value),
         "active_half_orders": active_half_orders,
+        "half_half_joined": half_half_joined,
+        "half_half_commission": half_half_commission,
         "total_customers": total_customers,
         "top_restaurants": restaurant_stats[:5],
         "all_restaurants": restaurant_stats
     }
+
+
+# ============ USER MANAGEMENT (SUPER ADMIN) ============
+@router.get('/users', response_model=list[UserResponse])
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    result = await db.execute(select(User))
+    return result.scalars().all()
+
+
+@router.post('/users', response_model=UserResponse)
+async def create_user(
+    user_in: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    # Only allow counter_admin creation via this endpoint
+    if user_in.role != UserRole.COUNTER_ADMIN:
+        raise HTTPException(status_code=400, detail='Role must be counter_admin')
+
+    # Counter admin must be assigned to exactly one restaurant
+    if user_in.role == UserRole.COUNTER_ADMIN and not user_in.restaurant_id:
+        raise HTTPException(
+            status_code=400,
+            detail='Counter Admin users must be assigned to a single restaurant.'
+        )
+
+    # Hash password
+    from auth import get_password_hash
+    hashed = get_password_hash(user_in.password)
+
+    new_user = User(username=user_in.username, password=hashed, role=user_in.role, restaurant_id=user_in.restaurant_id)
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
+
+@router.delete('/users/{user_id}')
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user_obj = result.scalar_one_or_none()
+    if not user_obj:
+        raise HTTPException(status_code=404, detail='User not found')
+    await db.delete(user_obj)
+    await db.commit()
+    return {"detail": "User deleted"}
 
 # ============ MENU VALIDATION BY RESTAURANT TYPE ============
 async def validate_menu_item_type(restaurant_id: int, item_type: MenuItemType, db: AsyncSession):

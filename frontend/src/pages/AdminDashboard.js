@@ -22,7 +22,9 @@ const AdminDashboard = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState([]);
+  const [users, setUsers] = useState([]);
   const [showAddRestaurant, setShowAddRestaurant] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState(null);
   const [newRestaurant, setNewRestaurant] = useState({
     name: '',
@@ -30,14 +32,29 @@ const AdminDashboard = () => {
     contact: '',
     type: 'mixed'
   });
+  const [newUser, setNewUser] = useState({ username: '', password: '', restaurant_id: '' });
 
   useEffect(() => {
     fetchRestaurants();
+    fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_URL}/users`, { headers });
+      setUsers(response.data);
+    } catch (error) {
+      toast.error('Failed to load users');
+    }
+  };
 
   const fetchRestaurants = async () => {
     try {
-      const response = await axios.get(`${API_URL}/restaurants`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_URL}/restaurants`, { headers });
       setRestaurants(response.data);
     } catch (error) {
       toast.error('Failed to load restaurants');
@@ -46,7 +63,9 @@ const AdminDashboard = () => {
 
   const addRestaurant = async () => {
     try {
-      await axios.post(`${API_URL}/restaurants`, newRestaurant);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API_URL}/restaurants`, newRestaurant, { headers });
       toast.success('Restaurant added successfully');
       setShowAddRestaurant(false);
       setNewRestaurant({ name: '', location: '', contact: '', type: 'mixed' });
@@ -58,11 +77,13 @@ const AdminDashboard = () => {
 
   const updateRestaurant = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.put(`${API_URL}/restaurants/${editingRestaurant.id}`, {
         name: editingRestaurant.name,
         location: editingRestaurant.location,
         contact: editingRestaurant.contact
-      });
+      }, { headers });
       toast.success('Restaurant updated');
       setEditingRestaurant(null);
       fetchRestaurants();
@@ -74,11 +95,50 @@ const AdminDashboard = () => {
   const deleteRestaurant = async (id) => {
     if (!window.confirm('Are you sure? This will delete all related data.')) return;
     try {
-      await axios.delete(`${API_URL}/restaurants/${id}`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.delete(`${API_URL}/restaurants/${id}`, { headers });
       toast.success('Restaurant deleted');
       fetchRestaurants();
     } catch (error) {
       toast.error('Failed to delete restaurant');
+    }
+  };
+
+  const createUser = async () => {
+    if (!newUser.username || !newUser.password) {
+      toast.error('Username and password required');
+      return;
+    }
+    try {
+      const payload = {
+        username: newUser.username,
+        password: newUser.password,
+        role: 'counter_admin',
+        restaurant_id: parseInt(newUser.restaurant_id)
+      };
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(`${API_URL}/users`, payload, { headers });
+      toast.success('User created');
+      setShowCreateUser(false);
+      setNewUser({ username: '', password: '', restaurant_id: '' });
+      fetchUsers();
+    } catch (error) {
+      toast.error('Failed to create user');
+    }
+  };
+
+  const deleteUser = async (id) => {
+    if (!window.confirm('Delete user?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.delete(`${API_URL}/users/${id}`, { headers });
+      toast.success('User deleted');
+      fetchUsers();
+    } catch (error) {
+      toast.error('Failed to delete user');
     }
   };
 
@@ -113,6 +173,7 @@ const AdminDashboard = () => {
           <TabsList className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl p-1">
             <TabsTrigger value="restaurants" data-testid="restaurants-tab"><Building className="w-4 h-4 mr-2" />Restaurants</TabsTrigger>
             <TabsTrigger value="analytics" onClick={() => navigate('/analytics')} data-testid="analytics-tab"><BarChart3 className="w-4 h-4 mr-2" />Analytics</TabsTrigger>
+            <TabsTrigger value="users" data-testid="users-tab"><Users className="w-4 h-4 mr-2" />Restaurant Users</TabsTrigger>
           </TabsList>
 
           <TabsContent value="restaurants" className="space-y-4">
@@ -152,6 +213,44 @@ const AdminDashboard = () => {
               })}
             </div>
           </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Restaurant Users</h2>
+              <Button onClick={() => setShowCreateUser(true)} className="bg-gradient-to-r from-orange-500 to-amber-600" data-testid="create-user-btn">
+                <Plus className="w-4 h-4 mr-2" />Create User
+              </Button>
+            </div>
+
+            <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md rounded-lg p-4">
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="text-left">
+                      <th className="px-4 py-2">Username</th>
+                      <th className="px-4 py-2">Role</th>
+                      <th className="px-4 py-2">Restaurant</th>
+                      <th className="px-4 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id} className="border-t">
+                        <td className="px-4 py-3">{u.username}</td>
+                        <td className="px-4 py-3"><Badge className="bg-amber-100 text-amber-800">{u.role}</Badge></td>
+                        <td className="px-4 py-3">{u.restaurant_id ? (restaurants.find(r => r.id === u.restaurant_id)?.name || '—') : 'All'}</td>
+                        <td className="px-4 py-3">
+                          <Button size="sm" variant="destructive" onClick={() => deleteUser(u.id)}>
+                            <Trash2 className="w-3 h-3 mr-1" />Delete
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -178,6 +277,32 @@ const AdminDashboard = () => {
               </Select>
             </div>
             <Button onClick={addRestaurant} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-add-restaurant-btn">Add Restaurant</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
+        <DialogContent className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Create User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Username</Label><Input value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} data-testid="create-user-username" /></div>
+            <div><Label>Password</Label><Input type="password" value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} data-testid="create-user-password" /></div>
+            <div>
+              <Label>Restaurant</Label>
+              <Select value={newUser.restaurant_id} onValueChange={(value) => setNewUser({...newUser, restaurant_id: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {restaurants.map(r => (
+                    <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={createUser} className="w-full bg-gradient-to-r from-orange-500 to-amber-600" data-testid="submit-create-user-btn">Create User</Button>
           </div>
         </DialogContent>
       </Dialog>
