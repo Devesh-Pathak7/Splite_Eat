@@ -71,6 +71,7 @@ const CustomerDashboard = () => {
   const [halfSessions, setHalfSessions] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyPeriod, setHistoryPeriod] = useState('month');
 
   // Build quick lookup: menuId -> { price, half_price, name, ... }
   const menuMap = useMemo(() => {
@@ -159,9 +160,25 @@ const CustomerDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const res = await axios.get(`${API_URL}/orders`, {
-        params: { restaurant_id, page: 1, page_size: 50 },
-      });
+      const params = { restaurant_id, page: 1, page_size: 50 };
+      // map local period to backend period/custom
+      if (historyPeriod === 'today') params.period = 'today';
+      else if (historyPeriod === 'week') params.period = 'last_7';
+      else if (historyPeriod === 'month') params.period = 'month';
+      else if (historyPeriod === '3months') {
+        // use custom with start/end YYYY-MM-DD
+        const now = new Date();
+        const end = now.toISOString().slice(0, 10);
+        const startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        const start = startDate.toISOString().slice(0, 10);
+        params.period = 'custom';
+        params.start_date = start;
+        params.end_date = end;
+      }
+
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/orders`, { params, headers });
 
       const data = res.data;
       const list = Array.isArray(data.orders)
@@ -632,13 +649,33 @@ const CustomerDashboard = () => {
         {/* Order History */}
         {orderHistory.length > 0 && (
           <section className="pb-6 space-y-3">
-            <h2
-              className={`text-lg font-semibold ${
-                isDarkMode ? "text-gray-200" : "text-gray-700"
-              }`}
-            >
-              Order History
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2
+                className={`text-lg font-semibold ${
+                  isDarkMode ? "text-gray-200" : "text-gray-700"
+                }`}
+              >
+                Order History
+              </h2>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-500">Period</label>
+                <select
+                  value={historyPeriod}
+                  onChange={(e) => {
+                    setHistoryPeriod(e.target.value);
+                    // refetch orders with new period
+                    setLoading(true);
+                    fetchOrders();
+                  }}
+                  className="px-2 py-1 rounded border bg-white text-sm"
+                >
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="3months">Last 3 Months</option>
+                </select>
+              </div>
+            </div>
             <div className="space-y-3">
               {orderHistory.map((order) => {
                 const items = parseItems(order.items);

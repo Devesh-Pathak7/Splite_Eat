@@ -109,24 +109,28 @@ async def get_orders(
             else:
                 raise HTTPException(status_code=403, detail="User not assigned to a restaurant")
         
-        # Date filtering
-        now_utc = utc_now()
+        # Date filtering (apply UTC -> IST conversion at query level so frontend which
+        # assumes IST sees correct results without changing stored UTC timestamps)
+        # NOTE: We convert timestamps in SQL using CONVERT_TZ(created_at, '+00:00', '+05:30')
+        # and then apply DATE/YEARWEEK/MONTH comparisons to match IST calendar boundaries.
         if period == "today":
-            start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-            conditions.append(Order.created_at >= start_of_day)
+            # Today's IST date
+            conditions.append(func.date(func.convert_tz(Order.created_at, '+00:00', '+05:30')) == func.curdate())
         elif period == "last_7":
-            seven_days_ago = now_utc - timedelta(days=7)
-            conditions.append(Order.created_at >= seven_days_ago)
+            # Use YEARWEEK on IST-converted timestamp to match calendar week (mode 1: Monday first)
+            conditions.append(func.yearweek(func.convert_tz(Order.created_at, '+00:00', '+05:30'), 1) == func.yearweek(func.curdate(), 1))
         elif period == "month":
-            start_of_month = now_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            conditions.append(Order.created_at >= start_of_month)
+            # Match month & year on IST-converted timestamp
+            ist_ts = func.convert_tz(Order.created_at, '+00:00', '+05:30')
+            conditions.append(and_(func.month(ist_ts) == func.month(func.curdate()), func.year(ist_ts) == func.year(func.curdate())))
         elif period == "custom":
+            # Expect start_date/end_date as YYYY-MM-DD (IST). Convert to full-day range.
             if start_date:
-                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                conditions.append(Order.created_at >= start_dt)
+                start_str = f"{start_date} 00:00:00"
+                conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') >= start_str)
             if end_date:
-                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                conditions.append(Order.created_at <= end_dt)
+                end_str = f"{end_date} 23:59:59"
+                conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') <= end_str)
         
         # Status filter
         if status_filter:
@@ -163,6 +167,102 @@ async def get_orders(
     except Exception as e:
         logger.error(f"Error fetching orders: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
+
+@router.get("/history", response_model=dict)
+async def get_order_history(
+    restaurant_id: int,
+    period: str = Query("today", regex="^(today|this_week|custom)$"),
+    type_filter: str = Query("all", regex="^(half|full|all)$"),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["super_admin", "counter_admin"]))
+):
+    """Get completed orders history with filtering"""
+    try:
+        # Restaurant filter (based on user role)
+        if current_user.role.value == "super_admin":
+            if restaurant_id != current_user.restaurant_id and current_user.restaurant_id is not None:
+                raise HTTPException(status_code=403, detail="Access denied to this restaurant")
+        else:
+            # Counter admin can only see their restaurant
+            if current_user.restaurant_id != restaurant_id:
+                raise HTTPException(status_code=403, detail="Access denied to this restaurant")
+        
+        # Base conditions: only COMPLETED orders
+        conditions = [Order.status == OrderStatus.COMPLETED, Order.restaurant_id == restaurant_id]
+        
+        # Date filtering (apply UTC -> IST conversion at query level)
+        if period == "today":
+            # Today's IST date
+            conditions.append(func.date(func.convert_tz(Order.created_at, '+00:00', '+05:30')) == func.curdate())
+        elif period == "this_week":
+            # This week IST
+            conditions.append(func.yearweek(func.convert_tz(Order.created_at, '+00:00', '+05:30'), 1) == func.yearweek(func.curdate(), 1))
+        elif period == "custom":
+            # Expect start_date/end_date as YYYY-MM-DD (IST)
+            if start_date:
+                start_str = f"{start_date} 00:00:00"
+                conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') >= start_str)
+            if end_date:
+                end_str = f"{end_date} 23:59:59"
+                conditions.append(func.convert_tz(Order.created_at, '+00:00', '+05:30') <= end_str)
+        
+        # Get all matching orders (without type filter, since we filter in Python)
+        query = select(Order).order_by(Order.created_at.desc())
+        if conditions:
+            query = query.where(and_(*conditions))
+        
+        result = await db.execute(query)
+        all_orders = result.scalars().all()
+        
+        # Filter by type in Python
+        import json
+        filtered_orders = []
+        for order in all_orders:
+            try:
+                items = json.loads(order.items) if order.items else []
+                has_paired = any(item.get("type") == "paired" for item in items)
+                order_type = "Half" if has_paired else "Full"
+                
+                if type_filter == "all" or (type_filter == "half" and has_paired) or (type_filter == "full" and not has_paired):
+                    filtered_orders.append((order, order_type))
+            except (json.JSONDecodeError, TypeError):
+                # If JSON invalid, treat as Full
+                if type_filter in ["all", "full"]:
+                    filtered_orders.append((order, "Full"))
+        
+        # Apply pagination
+        total = len(filtered_orders)
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_orders = filtered_orders[start_idx:end_idx]
+        
+        # Format response
+        history_orders = []
+        for order, order_type in paginated_orders:
+            history_orders.append({
+                "order_id": order.id,
+                "table_reference": order.table_no,
+                "order_type": order_type,
+                "completed_at": order.created_at,  # Use created_at as completed_at
+                "total_amount": order.total_amount
+            })
+        
+        return {
+            "orders": history_orders,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching order history: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch order history")
 
 
 @router.get("/export")

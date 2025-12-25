@@ -22,6 +22,7 @@ class UserRole(str, enum.Enum):
     COUNTER_ADMIN = "counter_admin"
     CUSTOMER = "customer"
 
+
 class OrderStatus(str, enum.Enum):
     PENDING = "PENDING"
     PREPARING = "PREPARING"
