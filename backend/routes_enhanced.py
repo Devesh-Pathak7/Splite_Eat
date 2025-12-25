@@ -9,7 +9,7 @@ import json
 from database import get_db
 from models import (
     User, Restaurant, MenuItem, HalfOrderSession, Order, AuditLog, ErrorLog,
-    UserRole, HalfOrderStatus, OrderStatus, RestaurantType, MenuItemType, AuditAction
+    UserRole, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
 )
 from models import PairedOrder, PairedOrderStatus
 from schemas import (
@@ -291,9 +291,8 @@ async def get_super_admin_analytics(
     # and are completed (or served), but are not already represented in paired_orders (by order_id).
     orders_paired_query = select(func.count(Order.id))
     conds = [Order.items.like('%half_order%')]
-    # Only count orders that reached SERVED or COMPLETED
-    from models import OrderStatus as _OrderStatus  # local alias
-    conds.append(Order.status.in_([_OrderStatus.SERVED, _OrderStatus.COMPLETED]))
+    # Only count orders that reached SERVED, COMPLETED, or SESSION_CLOSED
+    conds.append(Order.status.in_(["SERVED", "COMPLETED", "SESSION_CLOSED"]))
     if restaurant_id:
         conds.append(Order.restaurant_id == restaurant_id)
     if start_dt_ist:
@@ -342,7 +341,7 @@ async def get_super_admin_analytics(
         # Active tables
         tables_query = select(func.count(func.distinct(Order.table_no))).where(
             Order.restaurant_id == rest.id,
-            Order.status.in_([OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY])
+            Order.status.in_(["PENDING", "PREPARING", "READY"])
         )
         result = await db.execute(tables_query)
         active_tables = result.scalar() or 0

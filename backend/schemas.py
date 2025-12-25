@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional, List
 from datetime import datetime
-from models import UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
+from models import UserRole, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
 import re
 
 # User Schemas
@@ -167,7 +167,7 @@ class OrderCreate(BaseModel):
     idempotency_key: Optional[str] = None
 
 class OrderUpdateStatus(BaseModel):
-    status: OrderStatus
+    status: str
 
 class OrderResponse(BaseModel):
     id: int
@@ -177,7 +177,7 @@ class OrderResponse(BaseModel):
     phone: Optional[str]
     items: str
     total_amount: float
-    status: OrderStatus
+    status: str
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

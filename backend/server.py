@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from database import get_db, engine, Base
 from models import (
     User, Restaurant, Table, MenuItem, HalfOrderSession, Order, AuditLog,
-    UserRole, OrderStatus, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
+    UserRole, HalfOrderStatus, RestaurantType, MenuItemType, AuditAction
 )
 from schemas import *
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, require_role, log_audit, check_restaurant_access
@@ -498,7 +498,7 @@ async def create_order(
                 "table_no": order.table_no,
                 "customer_name": order.customer_name,
                 "total_amount": order.total_amount,
-                "status": order.status.value
+                "status": order.status
             }
         }
     )
@@ -535,7 +535,7 @@ async def update_order_status(
         data={
             "order": {
                 "id": order.id,
-                "status": order.status.value
+                "status": order.status
             }
         }
     )

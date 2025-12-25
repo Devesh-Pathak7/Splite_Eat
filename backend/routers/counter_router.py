@@ -2,12 +2,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, update
 from typing import List
 import logging
 
 from database import get_db
-from models import User, Table, HalfOrderSession, Order, TableStatus, HalfOrderStatus, OrderStatus, utc_now
+from models import User, Table, HalfOrderSession, Order, TableStatus, HalfOrderStatus, PairedOrder, PairedOrderStatus, utc_now
 from auth import get_current_user, require_role
 from services.websocket_service import broadcast_event
 from services.audit_service import log_audit
@@ -50,7 +50,7 @@ async def get_tables_status(
                     and_(
                         Order.restaurant_id == restaurant_id,
                         Order.table_no == table.table_no,
-                        Order.status.in_([OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY])
+                        Order.status.in_(["PENDING", "PREPARING", "READY"])
                     )
                 )
             )
@@ -129,7 +129,7 @@ async def get_counter_dashboard_stats(
             select(func.count(Order.id)).where(
                 and_(
                     Order.restaurant_id == restaurant_id,
-                    Order.status.in_([OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY])
+                    Order.status.in_(["PENDING", "PREPARING", "READY"])
                 )
             )
         )
@@ -169,3 +169,158 @@ async def get_counter_dashboard_stats(
     except Exception as e:
         logger.error(f"Error fetching dashboard stats: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch dashboard stats")
+
+
+@router.post("/close-session/{table_no}")
+async def close_table_session(
+    table_no: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["counter_admin", "super_admin"]))
+):
+    """Close table session and free table(s) for reuse"""
+    try:
+        # 1) Decode the path parameter (URL-encoded like "T21%2BT22" → "T21+T22")
+        decoded_table_no = table_no.replace("%2B", "+").replace("%20", " ").strip()
+
+        # 2) Detect table grouping
+        if "+" in decoded_table_no:
+            table_nos = [t.strip() for t in decoded_table_no.split("+") if t.strip()]
+        else:
+            table_nos = [decoded_table_no]
+
+        logger.info(f"Closing session for tables: {table_nos}")
+
+        # 3) Load involved tables safely - log warnings for missing tables but continue
+        tables = []
+        for tbl_no in table_nos:
+            table_result = await db.execute(
+                select(Table).where(
+                    and_(
+                        Table.restaurant_id == current_user.restaurant_id,
+                        Table.table_no == tbl_no
+                    )
+                )
+            )
+            table = table_result.scalar_one_or_none()
+            if not table:
+                logger.warning(f"Table {tbl_no} not found for restaurant {current_user.restaurant_id} — continuing clear session")
+                continue
+            tables.append(table)
+
+        # 4) Perform updates normally (no transaction context manager)
+        # For each table: set status = "AVAILABLE", is_occupied = false
+        for table in tables:
+            table.status = TableStatus.AVAILABLE
+            table.is_occupied = False
+            table.occupied_since = None
+            table.last_updated = utc_now()
+
+        # 5) Mark ALL orders on these tables as SESSION_CLOSED (not just completed ones)
+        # Include both individual table numbers and the paired table string
+        table_identifiers = table_nos + ([decoded_table_no] if "+" in decoded_table_no else [])
+        await db.execute(
+            update(Order)
+            .where(Order.restaurant_id == current_user.restaurant_id)
+            .where(Order.table_no.in_(table_identifiers))
+            .where(Order.status != "SESSION_CLOSED")  # Don't update already closed orders
+            .values(status="SESSION_CLOSED")
+        )
+
+        # 5.1) Mark related PairedOrder records as COMPLETED
+        # Find PairedOrder records related to the cleared tables via their sessions
+        from sqlalchemy import or_
+        paired_order_conditions = [
+            PairedOrder.restaurant_id == current_user.restaurant_id,
+            ~PairedOrder.status.in_([
+                PairedOrderStatus.COMPLETED,
+                PairedOrderStatus.CANCELLED
+            ])
+        ]
+        
+        # Join with HalfOrderSession to find paired orders on cleared tables
+        session_subquery = select(HalfOrderSession.id).where(
+            and_(
+                HalfOrderSession.restaurant_id == current_user.restaurant_id,
+                HalfOrderSession.table_no.in_(table_identifiers)
+            )
+        )
+        
+        paired_order_conditions.append(
+            or_(
+                PairedOrder.half_session_a.in_(session_subquery),
+                PairedOrder.half_session_b.in_(session_subquery)
+            )
+        )
+        
+        await db.execute(
+            update(PairedOrder)
+            .where(and_(*paired_order_conditions))
+            .values(status=PairedOrderStatus.COMPLETED, completed_at=utc_now())
+        )
+
+        # 6) Close related session records
+        if "+" in decoded_table_no:
+            # Handle HALF+HALF paired session
+            session_result = await db.execute(
+                select(HalfOrderSession).where(
+                    and_(
+                        HalfOrderSession.restaurant_id == current_user.restaurant_id,
+                        HalfOrderSession.table_no == decoded_table_no,
+                        HalfOrderSession.status == HalfOrderStatus.ACTIVE
+                    )
+                )
+            )
+            session = session_result.scalar_one_or_none()
+            if session:
+                session.status = HalfOrderStatus.COMPLETED
+                logger.info(f"Completed paired session {session.id} for {decoded_table_no}")
+        else:
+            # Handle FULL order session - mark any active sessions as completed
+            session_result = await db.execute(
+                select(HalfOrderSession).where(
+                    and_(
+                        HalfOrderSession.restaurant_id == current_user.restaurant_id,
+                        HalfOrderSession.table_no == decoded_table_no,
+                        HalfOrderSession.status == HalfOrderStatus.ACTIVE
+                    )
+                )
+            )
+            active_sessions = session_result.scalars().all()
+            for session in active_sessions:
+                session.status = HalfOrderStatus.COMPLETED
+                logger.info(f"Completed full session {session.id} for {decoded_table_no}")
+
+        # Commit all changes
+        await db.commit()
+
+        # 7) Broadcast WebSocket event
+        broadcast_tables = table_nos.copy()
+        if "+" in decoded_table_no:
+            broadcast_tables.append(decoded_table_no)  # Include the full paired string like "T30+T32"
+        
+        await broadcast_event(
+            restaurant_id=current_user.restaurant_id,
+            event_type="table_session_cleared",
+            data={
+                "tables": broadcast_tables,
+                "cleared_at": utc_now().isoformat()
+            }
+        )
+
+        # 8) Return success JSON
+        return {
+            "tables": table_nos,
+            "status": "cleared"
+        }
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # 9) Safe error handling - log details, return 500
+        logger.error(f"Error closing table session {table_no}: {str(e)}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to close table session"
+        )
