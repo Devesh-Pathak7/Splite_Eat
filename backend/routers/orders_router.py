@@ -29,8 +29,7 @@ router = APIRouter(prefix="/api/orders", tags=["Orders"])
 async def create_order(
     data: OrderCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db)
 ):
     """Create order with support for paired orders (half + full items)"""
     try:
@@ -42,7 +41,7 @@ async def create_order(
             phone=data.phone,
             items=data.items,
             paired_order_ids=data.paired_order_ids if hasattr(data, 'paired_order_ids') else None,
-            current_user=current_user,
+            current_user=None,
             ip_address=request.client.host if request.client else None,
             idempotency_key=data.idempotency_key if hasattr(data, 'idempotency_key') else None
         )

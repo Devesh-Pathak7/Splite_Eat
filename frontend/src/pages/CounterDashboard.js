@@ -1083,7 +1083,7 @@ const resp = await axios.get(
                                 )
                               }
                             >
-                              Start
+                              Accept
                             </Button>
                           )}
                           {(ord.status || "")
@@ -1095,27 +1095,11 @@ const resp = await axios.get(
                               onClick={() =>
                                 updateOrderStatus(
                                   ord.id || ord.order_id,
-                                  "READY"
+                                  "COMPLETED"
                                 )
                               }
                             >
-                              Ready
-                            </Button>
-                          )}
-                          {(ord.status || "")
-                            .toString()
-                            .toUpperCase() === "READY" && (
-                            <Button
-                              size="sm"
-                              className="h-8 px-3 text-xs"
-                              onClick={() =>
-                                updateOrderStatus(
-                                  ord.id || ord.order_id,
-                                  "SERVED"
-                                )
-                              }
-                            >
-                              Serve
+                              Complete
                             </Button>
                           )}
                           {(ord.status || "")
@@ -1134,7 +1118,7 @@ const resp = await axios.get(
                               Complete
                             </Button>
                           )}
-                          {["PENDING", "PREPARING", "READY", "SERVED"].includes(
+                          {["PENDING", "PREPARING"].includes(
                             (ord.status || "").toString().toUpperCase()
                           ) && (
                             <Button
