@@ -7,6 +7,7 @@ import IntroPage from './pages/IntroPage';
 import LoginPage from './pages/LoginPage';
 import MenuPage from './pages/MenuPageProduction';
 import CustomerDashboard from './pages/CustomerDashboard';
+import OrderSuccessPage from './pages/OrderSuccessPage';
 import CounterDashboard from './pages/CounterDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -45,6 +46,7 @@ const AppRoutes = () => {
       <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} replace /> : <LoginPage />} />
       <Route path="/menu/:restaurant_id/:table_no" element={<MenuPage />} />
       <Route path="/my-orders/:restaurant_id/:table_no" element={<CustomerDashboard />} />
+      <Route path="/order-success" element={<OrderSuccessPage />} />
       <Route
         path="/counter"
         element={

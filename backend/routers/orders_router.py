@@ -175,6 +175,63 @@ async def get_orders(
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
 
 
+@router.get("/public", response_model=dict)
+async def get_public_orders(
+    restaurant_id: int = Query(..., description="Restaurant ID"),
+    table_no: str = Query(..., description="Table number"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get orders for a specific table (public endpoint for customers)"""
+    try:
+        # Decode table_no (handle URL encoding)
+        decoded_table_no = table_no.replace("%2B", "+").replace("%20", " ").strip()
+
+        # Build conditions to include orders for this table
+        # Include both individual table and combined table strings
+        table_identifiers = [decoded_table_no]
+        if "+" in decoded_table_no:
+            # For combined tables like "T21+T22", also include individual tables
+            table_identifiers.extend([t.strip() for t in decoded_table_no.split("+") if t.strip()])
+
+        conditions = [
+            Order.restaurant_id == restaurant_id,
+            Order.table_no.in_(table_identifiers),
+            Order.status != "SESSION_CLOSED"  # Don't show closed session orders
+        ]
+
+        result = await db.execute(
+            select(Order).where(and_(*conditions)).order_by(Order.created_at.desc())
+        )
+        orders = result.scalars().all()
+
+        # Convert to dict format similar to the authenticated endpoint
+        orders_data = []
+        for order in orders:
+            orders_data.append({
+                "id": order.id,
+                "restaurant_id": order.restaurant_id,
+                "table_no": order.table_no,
+                "customer_name": order.customer_name,
+                "phone": order.phone,
+                "items": order.items,
+                "total_amount": order.total_amount,
+                "status": order.status,
+                "created_at": order.created_at.isoformat() if order.created_at else None
+            })
+
+        return {
+            "orders": orders_data,
+            "total": len(orders_data),
+            "page": 1,
+            "page_size": len(orders_data),
+            "total_pages": 1
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching public orders: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
+
 @router.get("/history", response_model=dict)
 async def get_order_history(
     restaurant_id: int,

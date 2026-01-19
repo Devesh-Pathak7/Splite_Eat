@@ -392,7 +392,7 @@ export default function MenuPageProduction() {
       alert('Order placed successfully!');
       setCart({ items: [], halfOrderIds: [] });
       setShowCart(false);
-      navigate('/order-success');
+      navigate(`/order-success?restaurant_id=${restaurant_id}&table_no=${table_no}`);
     } catch (e) {
       console.error('Checkout failed:', e);
       alert('Checkout failed: ' + (e.response?.data?.detail || e.message || 'Server error.'));

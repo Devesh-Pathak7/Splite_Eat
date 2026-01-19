@@ -160,11 +160,9 @@ const CustomerDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const params = { restaurant_id, page: 1, page_size: 50 };
+      const params = { restaurant_id, table_no };
 
-      const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get(`${API_URL}/orders`, { params, headers });
+      const res = await axios.get(`${API_URL}/orders/public`, { params });
 
       const data = res.data;
       const list = Array.isArray(data.orders) ? data.orders : Array.isArray(data) ? data : [];
@@ -200,9 +198,7 @@ const CustomerDashboard = () => {
 
   const fetchHalfSessions = async () => {
     try {
-      const res = await axios.get(`${API_URL}/half-order/active`, {
-        params: { restaurant_id },
-      });
+      const res = await axios.get(`${API_URL}/restaurants/${restaurant_id}/tables/${table_no}/half-orders`);
       const sessions = Array.isArray(res.data) ? res.data : [];
       const mySessions = sessions.filter(
         (s) => s.table_no === table_no || s.joined_by_table_no === table_no
