@@ -67,6 +67,38 @@ class OrderService:
                 
                 paired_orders.append(paired_order)
         
+        # Determine the correct table_no for the order
+        # For paired orders, use combined table string
+        final_table_no = table_no
+        if paired_orders:
+            # Collect all unique table numbers from the half-order sessions involved
+            involved_tables = set()
+            for paired_order in paired_orders:
+                # Get the half-order sessions
+                session_a_result = await db.execute(
+                    select(HalfOrderSession).where(HalfOrderSession.id == paired_order.half_session_a)
+                )
+                session_a = session_a_result.scalar_one_or_none()
+                if session_a:
+                    involved_tables.add(session_a.table_no)
+                    if session_a.joined_by_table_no:
+                        involved_tables.add(session_a.joined_by_table_no)
+                
+                session_b_result = await db.execute(
+                    select(HalfOrderSession).where(HalfOrderSession.id == paired_order.half_session_b)
+                )
+                session_b = session_b_result.scalar_one_or_none()
+                if session_b:
+                    involved_tables.add(session_b.table_no)
+                    if session_b.joined_by_table_no:
+                        involved_tables.add(session_b.joined_by_table_no)
+            
+            # Sort and combine table numbers
+            if len(involved_tables) > 1:
+                final_table_no = "+".join(sorted(involved_tables))
+            elif len(involved_tables) == 1:
+                final_table_no = list(involved_tables)[0]
+        
         # Create the order - serialize items properly
         items_json = json.dumps([
             {
@@ -80,7 +112,7 @@ class OrderService:
         
         order = Order(
             restaurant_id=restaurant_id,
-            table_no=table_no,
+            table_no=final_table_no,
             customer_name=customer_name,
             phone=phone,
             items=items_json,

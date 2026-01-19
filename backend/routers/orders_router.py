@@ -186,23 +186,29 @@ async def get_public_orders(
         # Decode table_no (handle URL encoding)
         decoded_table_no = table_no.replace("%2B", "+").replace("%20", " ").strip()
 
-        # Build conditions to include orders for this table
-        # Include both individual table and combined table strings
-        table_identifiers = [decoded_table_no]
-        if "+" in decoded_table_no:
-            # For combined tables like "T21+T22", also include individual tables
-            table_identifiers.extend([t.strip() for t in decoded_table_no.split("+") if t.strip()])
-
+        # Get all non-closed orders for this restaurant
         conditions = [
             Order.restaurant_id == restaurant_id,
-            Order.table_no.in_(table_identifiers),
             Order.status != "SESSION_CLOSED"  # Don't show closed session orders
         ]
 
         result = await db.execute(
             select(Order).where(and_(*conditions)).order_by(Order.created_at.desc())
         )
-        orders = result.scalars().all()
+        all_orders = result.scalars().all()
+
+        # Filter orders that belong to this table
+        orders = []
+        for order in all_orders:
+            order_table = order.table_no
+            if order_table == decoded_table_no:
+                # Exact match
+                orders.append(order)
+            elif "+" in order_table:
+                # Check if this table is part of a combined table string
+                combined_tables = [t.strip() for t in order_table.split("+") if t.strip()]
+                if decoded_table_no in combined_tables:
+                    orders.append(order)
 
         # Convert to dict format similar to the authenticated endpoint
         orders_data = []
