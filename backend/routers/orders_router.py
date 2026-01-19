@@ -29,8 +29,7 @@ router = APIRouter(prefix="/api/orders", tags=["Orders"])
 async def create_order(
     data: OrderCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db)
 ):
     """Create order with support for paired orders (half + full items)"""
     try:
@@ -42,7 +41,7 @@ async def create_order(
             phone=data.phone,
             items=data.items,
             paired_order_ids=data.paired_order_ids if hasattr(data, 'paired_order_ids') else None,
-            current_user=current_user,
+            current_user=None,
             ip_address=request.client.host if request.client else None,
             idempotency_key=data.idempotency_key if hasattr(data, 'idempotency_key') else None
         )
@@ -173,6 +172,69 @@ async def get_orders(
         
     except Exception as e:
         logger.error(f"Error fetching orders: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch orders")
+
+
+@router.get("/public", response_model=dict)
+async def get_public_orders(
+    restaurant_id: int = Query(..., description="Restaurant ID"),
+    table_no: str = Query(..., description="Table number"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get orders for a specific table (public endpoint for customers)"""
+    try:
+        # Decode table_no (handle URL encoding)
+        decoded_table_no = table_no.replace("%2B", "+").replace("%20", " ").strip()
+
+        # Get all non-closed orders for this restaurant
+        conditions = [
+            Order.restaurant_id == restaurant_id,
+            Order.status != "SESSION_CLOSED"  # Don't show closed session orders
+        ]
+
+        result = await db.execute(
+            select(Order).where(and_(*conditions)).order_by(Order.created_at.desc())
+        )
+        all_orders = result.scalars().all()
+
+        # Filter orders that belong to this table
+        orders = []
+        for order in all_orders:
+            order_table = order.table_no
+            if order_table == decoded_table_no:
+                # Exact match
+                orders.append(order)
+            elif "+" in order_table:
+                # Check if this table is part of a combined table string
+                combined_tables = [t.strip() for t in order_table.split("+") if t.strip()]
+                if decoded_table_no in combined_tables:
+                    orders.append(order)
+
+        # Convert to dict format similar to the authenticated endpoint
+        orders_data = []
+        for order in orders:
+            orders_data.append({
+                "id": order.id,
+                "restaurant_id": order.restaurant_id,
+                "table_no": order.table_no,
+                "customer_name": order.customer_name,
+                "phone": order.phone,
+                "items": order.items,
+                "total_amount": order.total_amount,
+                "status": order.status,
+                "created_at": order.created_at.isoformat() if order.created_at else None
+            })
+
+        return {
+            "orders": orders_data,
+            "total": len(orders_data),
+            "page": 1,
+            "page_size": len(orders_data),
+            "total_pages": 1
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching public orders: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
 
 
